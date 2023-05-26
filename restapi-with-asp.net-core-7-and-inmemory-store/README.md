@@ -233,11 +233,11 @@ Final operation supported by our REST API, delete movie. We simply call the `Del
 I am not adding any unit or integration tests for this tutorial, perhaps a following tutorial. But all the endpoints can be tested either by the Swagger UI by running the application or using Postman.
 
 ## References
-In no particular order  
-[What is a REST API?](https://www.ibm.com/topics/rest-apis)  
-[Adding health checks with Liveness, Readiness, and Startup probes](https://andrewlock.net/deploying-asp-net-core-applications-to-kubernetes-part-6-adding-health-checks-with-liveness-readiness-and-startup-probes/)  
-[Health checks in ASP.NET Core](https://learn.microsoft.com/en-us/aspnet/core/host-and-deploy/health-checks?view=aspnetcore-7.0)  
-[AutoMapper](https://automapper.org/)  
-[Boxed.Mapping](https://www.nuget.org/packages/Boxed.Mapping/)  
-[A Simple and Fast Object Mapper](https://rehansaeed.com/a-simple-and-fast-object-mapper/)  
-And many more
+In no particular order
+* [What is a REST API?](https://www.ibm.com/topics/rest-apis)
+* [Adding health checks with Liveness, Readiness, and Startup probes](https://andrewlock.net/deploying-asp-net-core-applications-to-kubernetes-part-6-adding-health-checks-with-liveness-readiness-and-startup-probes/)
+* [Health checks in ASP.NET Core](https://learn.microsoft.com/en-us/aspnet/core/host-and-deploy/health-checks?view=aspnetcore-7.0)
+* [AutoMapper](https://automapper.org/)
+* [Boxed.Mapping](https://www.nuget.org/packages/Boxed.Mapping/)
+* [A Simple and Fast Object Mapper](https://rehansaeed.com/a-simple-and-fast-object-mapper/)
+* And many more
