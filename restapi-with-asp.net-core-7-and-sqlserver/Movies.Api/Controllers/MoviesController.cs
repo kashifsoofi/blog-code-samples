@@ -20,9 +20,10 @@ public class MoviesController : Controller
     [HttpGet]
     [Produces("application/json")]
     [ProducesResponseType(typeof(IEnumerable<Domain.Movie>), StatusCodes.Status200OK)]
-    public IActionResult Get()
+    public async Task<IActionResult> Get()
     {
-        var movies = moviesStore.GetAll().Select(x => new Domain.Movie(x));
+        var storeMovies = await moviesStore.GetAll();
+        var movies = storeMovies.Select(x => new Domain.Movie(x));
         return Ok(movies);
     }
 
@@ -31,9 +32,9 @@ public class MoviesController : Controller
     [Produces("application/json")]
     [ProducesResponseType(typeof(Domain.Movie), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(Domain.Movie), StatusCodes.Status404NotFound)]
-    public IActionResult Get(Guid id)
+    public async Task<IActionResult> Get(Guid id)
     {
-        var movie = moviesStore.GetById(id);
+        var movie = await moviesStore.GetById(id);
         if (movie == null)
         {
             return NotFound();
@@ -47,11 +48,11 @@ public class MoviesController : Controller
     [Consumes(typeof(CreateMovieRequest), "application/json")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status409Conflict)]
-    public IActionResult Post([FromBody] CreateMovieRequest request)
+    public async Task<IActionResult> Post([FromBody] CreateMovieRequest request)
     {
         try
         {
-            moviesStore.Create(new CreateMovieParams(
+            await moviesStore.Create(new CreateMovieParams(
                 request.Id,
                 request.Title,
                 request.Director,
@@ -71,22 +72,14 @@ public class MoviesController : Controller
     [HttpPut("{id}")]
     [Consumes(typeof(UpdateMovieRequest), "application/json")]
     [ProducesResponseType(StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public IActionResult Put(Guid id, [FromBody] UpdateMovieRequest request)
+    public async Task<IActionResult> Put(Guid id, [FromBody] UpdateMovieRequest request)
     {
-        try
-        {
-            moviesStore.Update(id, new UpdateMovieParams(
-                request.Title,
-                request.Director,
-                request.TicketPrice,
-                request.ReleaseDate
-                ));
-        }
-        catch (RecordNotFoundException)
-        {
-            return NotFound();
-        }
+        await moviesStore.Update(id, new UpdateMovieParams(
+            request.Title,
+            request.Director,
+            request.TicketPrice,
+            request.ReleaseDate
+            ));
 
         return Ok();
     }
@@ -94,18 +87,9 @@ public class MoviesController : Controller
     // DELETE api/values/5
     [HttpDelete("{id}")]
     [ProducesResponseType(StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public IActionResult Delete(Guid id)
+    public async Task<IActionResult> Delete(Guid id)
     {
-        try
-        {
-            moviesStore.Delete(id);
-        }
-        catch (RecordNotFoundException)
-        {
-            return NotFound();
-        }
-
+        await moviesStore.Delete(id);
         return Ok();
     }
 }

@@ -1,12 +1,14 @@
 ﻿using Movies.Api.Store;
 using Movies.Api.Store.InMemory;
+using Movies.Api.Store.SqlServer;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddHealthChecks();
 
 // Add services to the container.
-builder.Services.AddSingleton<IMoviesStore, InMemoryMoviesStore>();
+// builder.Services.AddSingleton<IMoviesStore, InMemoryMoviesStore>();
+builder.Services.AddScoped<IMoviesStore, SqlServerMoviesStore>();
 
 builder.Services.AddControllers();
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle

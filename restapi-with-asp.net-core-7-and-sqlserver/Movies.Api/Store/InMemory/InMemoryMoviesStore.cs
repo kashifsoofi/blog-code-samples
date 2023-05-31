@@ -4,22 +4,22 @@ public class InMemoryMoviesStore : IMoviesStore
 {
     private readonly Dictionary<Guid, Movie> repository = new Dictionary<Guid, Movie>();
 
-    public IEnumerable<Movie> GetAll()
+    public Task<IEnumerable<Movie>> GetAll()
     {
-        return repository.Values.AsEnumerable();
+        return Task.FromResult(repository.Values.AsEnumerable());
     }
 
-    public Movie? GetById(Guid id)
+    public Task<Movie?> GetById(Guid id)
     {
         if (repository.ContainsKey(id))
         {
-            return repository[id];
+            return Task.FromResult<Movie?>(repository[id]);
         }
 
-        return null;
+        return Task.FromResult((Movie?)null);
     }
 
-    public void Create(CreateMovieParams createMovieParams)
+    public Task Create(CreateMovieParams createMovieParams)
     {
         if (repository.ContainsKey(createMovieParams.Id))
         {
@@ -30,14 +30,15 @@ public class InMemoryMoviesStore : IMoviesStore
             createMovieParams.Id,
             createMovieParams.Title,
             createMovieParams.Director,
-            createMovieParams.TicketPrice,
             createMovieParams.ReleaseDate,
+            createMovieParams.TicketPrice,
             DateTime.UtcNow,
             DateTime.UtcNow);
         repository.Add(movie.Id, movie);
+        return Task.CompletedTask;
     }
 
-    public void Update(Guid id, UpdateMovieParams updateMovieParams)
+    public Task Update(Guid id, UpdateMovieParams updateMovieParams)
     {
         if (!repository.ContainsKey(id))
         {
@@ -49,15 +50,16 @@ public class InMemoryMoviesStore : IMoviesStore
             movieToUpdate.Id,
             updateMovieParams.Title,
             updateMovieParams.Director,
-            updateMovieParams.TicketPrice,
             updateMovieParams.ReleaseDate,
+            updateMovieParams.TicketPrice,
             movieToUpdate.CreatedAt,
             DateTime.UtcNow);
 
         repository[id] = movie;
+        return Task.CompletedTask;
     }
 
-    public void Delete(Guid id)
+    public Task Delete(Guid id)
     {
         if (!repository.ContainsKey(id))
         {
@@ -65,6 +67,6 @@ public class InMemoryMoviesStore : IMoviesStore
         }
 
         repository.Remove(id);
+        return Task.CompletedTask;
     }
 }
-

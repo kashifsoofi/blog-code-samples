@@ -2,10 +2,10 @@
 
 public interface IMoviesStore
 {
-    IEnumerable<Movie> GetAll();
-    Movie? GetById(Guid id);
-    void Create(CreateMovieParams createMovieParams);
-    void Update(Guid id, UpdateMovieParams updateMovieParams);
-    void Delete(Guid id);
+    Task<IEnumerable<Movie>> GetAll();
+    Task<Movie?> GetById(Guid id);
+    Task Create(CreateMovieParams createMovieParams);
+    Task Update(Guid id, UpdateMovieParams updateMovieParams);
+    Task Delete(Guid id);
 }
 
