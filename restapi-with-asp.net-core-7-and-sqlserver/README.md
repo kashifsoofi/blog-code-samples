@@ -1,4 +1,4 @@
-# REST API using ASP.NET Core 7 and MySql
+# REST API using ASP.NET Core 7 and SQL Server
 This is a continuation of an earlier post [REST API with ASP.NET Core 7 and InMemory Store](https://kashifsoofi.github.io/aspnetcore/rest/restapi-with-asp.net-core-7-and-inmemory-store/). In this tutorial I will extend the service to store data in a [Microsoft SQL Server](https://www.microsoft.com/en-gb/sql-server), I will be using [Microsoft SQL Server - Ubuntu based images](https://hub.docker.com/_/microsoft-mssql-server) for this sample. I will use [Docker](https://www.docker.com/) to run SQL Server and use the same to run database migrations.
 
 ## Setup Database Server
@@ -90,7 +90,7 @@ docker-compose -f docker-compose.dev-env.yml up -d
 ```
 
 ## SqlServer Movies Store
-I will be using [Dapper](https://github.com/DapperLib/Dapper) - a simple object mapper for .Net along with [MySqlConnector](https://mysqlconnector.net/).
+I will be using [Dapper](https://github.com/DapperLib/Dapper) - a simple object mapper for .Net along with [Microsoft.Data.Sql](https://github.com/dotnet/SqlClient).
 
 ### Setup
 * Lets start by adding nuget packages
@@ -106,7 +106,7 @@ dotnet add package Dapper --version 2.0.123
 I have added a helper class under `Store` folder named `SqlHelper`. It loads embedded resources under the `Sql` folder with extension `.sql` where the class containing the instance of thhe helper is. Reason for this is I like to have each `SQL` query in its own file. Feel free to put the query directly in the methods.
 
 ### Class and Constructor
-Add a new folder under `Store`, I named it as `SqlServer` and add a file named `SqlServerMoviesStore.cs`. This class would accept an `IConfiguration` as parameter that we would use to load MySql connection string from .NET configuration. We would initialize `connectionString` and `sqlHelper` member variables in constructor.
+Add a new folder under `Store`, I named it as `SqlServer` and add a file named `SqlServerMoviesStore.cs`. This class would accept an `IConfiguration` as parameter that we would use to load SQL Server connection string from .NET configuration. We would initialize `connectionString` and `sqlHelper` member variables in constructor.
 ```csharp
 public SqlServerMoviesStore(IConfiguration configuration)
 {
