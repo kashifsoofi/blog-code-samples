@@ -2,7 +2,7 @@
 This is a continuation of an earlier post [REST API with ASP.NET Core 7 and InMemory Store](https://kashifsoofi.github.io/aspnetcore/rest/restapi-with-asp.net-core-7-and-inmemory-store/). In this tutorial I will extend the service to store data in [MongoDB](https://www.mongodb.com/), I will be using [MongoDB Community Server Docker Image](https://hub.docker.com/r/mongodb/mongodb-community-server) for this sample. I will use [Docker](https://www.docker.com/) to run MongoDB.
 
 ## Setup Database Server
-I will be using a docker-compose to run SQL Server in a docker container. This would allow us the add more services that our rest api is depenedent on e.g. redis server for distributed caching.
+I will be using a docker-compose to run MongoDB in a docker container. This would allow us the add more services that our rest api is depenedent on e.g. redis server for distributed caching.
 
 Let's start by adding a new file by right clicking on Solution name in Visual Studio and Add New File. I like to name file as `docker-compose.dev-env.yml`, feel free to name it as you like. Add following content to add a database instance for movies rest api.
 ```yaml
