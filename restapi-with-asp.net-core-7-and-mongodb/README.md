@@ -14,6 +14,7 @@ services:
     environment:
       - MONGODB_INITDB_ROOT_USERNAME=root
       - MONGODB_INITDB_ROOT_PASSWORD=Password123
+      - MONGO_INITDB_DATABASE=Movies
     volumes:
       - moviesdbdata:/data/db
     ports:
@@ -33,214 +34,142 @@ We would not do any database/schema migrations for MongoDB as its a NoSQL databa
 
 ## MongoDB Movies Store
 
-### Setup - TODO
+### Setup
 * Lets start by adding nuget packages
 ```shell
-dotnet add package Microsoft.Data.SqlClient --version 5.1.1
-dotnet add package Dapper --version 2.0.123
+dotnet add package MongoDB.Driver --version 2.19.2
+dotnet add package MongoDB.Bson --version 2.19.2
 ```
 * Update `IMovieStore` and make all methods `async`.
 * Update `Controller` to make methods `async` and `await` calls to store methods
 * Update `InMemoryMoviesStore` to make methods `async`
 
-### Class and Constructor
-Add a new folder under `Store`, I named it as `SqlServer` and add a file named `SqlServerMoviesStore.cs`. This class would accept an `IConfiguration` as parameter that we would use to load SQL Server connection string from .NET configuration. We would initialize `connectionString` and `sqlHelper` member variables in constructor.
+### Configuration
+Add a new folder `Configuration` and add `MoviesStoreConfiguration.cs` file.
 ```csharp
-public SqlServerMoviesStore(IConfiguration configuration)
+public class MoviesStoreConfiguration
 {
-    var connectionString = configuration.GetConnectionString("MoviesDb");
-    if (connectionString == null)
-    {
-        throw new InvalidOperationException("Missing [MoviesDb] connection string.");
-    }
+    public string ConnectionString { get; set; } = null!;
+    public string DatabaseName { get; set; } = null!;
+    public string MoviesCollectionName { get; set; } = null!;
+}
+```
+Add following to the appsettings.json
+```json
+"MoviesStoreConfiguration": {
+    "ConnectionString": "mongodb://localhost:27017",
+    "DatabaseName": "MoviesStore",
+    "BooksCollectionName": "Movies"
+  }
+```
+Register the configuration in Dependency Injection container in `Program.cs`
+```csharp
+// Add services to the container.
+builder.Services.Configure<MoviesStoreConfiguration>(
+    builder.Configuration.GetSection(nameof(MoviesStoreConfiguration)));
+```
 
-    this.connectionString = connectionString;
-    sqlHelper = new SqlHelper<SqlServerMoviesStore>();
+### Class and Constructor
+Add a new folder under `Store`, I named it as `Mongo` and add a file named `MongoMoviesStore.cs`. This class would accept an `IOptions<MoviesStoreConfiguration>` as parameter that we would use to connect to MongoDB, get database and MongoCollection.
+```csharp
+private readonly IMongoCollection<Movie> moviesCollection;
+
+public MongoMoviesStore(IOptions<MoviesStoreConfiguration> moviesStoreConfiguration)
+{
+    var mongoClient = new MongoClient(moviesStoreConfiguration.Value.ConnectionString);
+    var mongoDatabase = mongoClient.GetDatabase(moviesStoreConfiguration.Value.DatabaseName);
+
+    moviesCollection = mongoDatabase.GetCollection<Movie>(moviesStoreConfiguration.Value.MoviesCollectionName);
 }
 ```
 
 I have specified this in `appsettings.json` configuration file. This is acceptable for development but NEVER put a production/stagging connection string in a configuration file. This can be put in secure vault e.g. AWS Parameter Store or Azure KeyVault and can be accessed from the application. CD pipeline can also be configured to load this value from a secure location and set as an environment variable for the container running the application.
 
 ### Create
-We create a new instance of `SqlConnection`, setup parameters for create and execute the query using `Dapper` to insert a new record, we are handling a `SqlException` and throw our custom `DuplicateKeyException` if `Number` of exception is `2627`.
+We create a new instance of `Movie`, then we use `moviesCollection` to insert a new record, we are handling a `MongoWriteException` and throw our custom `DuplicateKeyException` if `WriteError.Code` of exception is `11000`.
 
 Create function looks like
 ```csharp
 public async Task Create(CreateMovieParams createMovieParams)
 {
-    await using var connection = new SqlConnection(this.connectionString);
+    var movie = new Movie(
+        createMovieParams.Id,
+        createMovieParams.Title,
+        createMovieParams.Director,
+        createMovieParams.TicketPrice,
+        createMovieParams.ReleaseDate,
+        DateTime.UtcNow,
+        DateTime.UtcNow);
+    try
     {
-        var parameters = new
+        await moviesCollection.InsertOneAsync(movie);
+    }
+    catch (MongoWriteException ex)
+    {
+        if (ex.WriteError.Category == ServerErrorCategory.DuplicateKey &&
+            ex.WriteError.Code == 11000)
         {
-            createMovieParams.Id,
-            createMovieParams.Title,
-            createMovieParams.Director,
-            createMovieParams.ReleaseDate,
-            createMovieParams.TicketPrice,
-            CreatedAt = DateTime.UtcNow,
-            UpdatedAt = DateTime.UtcNow,
-        };
-
-        try
-        {
-            await connection.ExecuteAsync(
-                this.sqlHelper.GetSqlFromEmbeddedResource("Create"),
-                parameters,
-                commandType: CommandType.Text);
+            throw new DuplicateKeyException();
         }
-        catch (SqlException ex)
-        {
-            if (ex.Number == 2627)
-            {
-                throw new DuplicateKeyException();
-            }
 
-            throw;
-        }
+        throw;
     }
 }
 ```
-And corresponding sql query from `Create.sql` file
-```sql
-INSERT INTO Movies(
-    Id,
-    Title,
-    Director,
-    ReleaseDate,
-    TicketPrice,
-    CreatedAt,
-    UpdatedAt
-)
-VALUES (
-    @Id,
-    @Title,
-    @Director,
-    @ReleaseDate,
-    @TicketPrice,
-    @CreatedAt,
-    @UpdatedAt
-)
-```
-
-Please note the column names and parameter names should match casing as defined in database `up` scripts.
 
 ### GetAll
-We create a new instance of `SqlConnection`, use `Dapper` to execute query, dapper would map the columns to properties.
+We use moviesCollection to find all records.
 ```csharp
 public async Task<IEnumerable<Movie>> GetAll()
 {
-    await using var connection = new SqlConnection(this.connectionString);
-    return await connection.QueryAsync<Movie>(
-        sqlHelper.GetSqlFromEmbeddedResource("GetAll"),
-        commandType: CommandType.Text
-        );
+    return await moviesCollection.Find(_ => true).ToListAsync();
 }
-```
-And corresponding sql query from `GetAll.sql` file
-```sql
-SELECT
-    Id,
-    Title,
-    Director,
-    ReleaseDate,
-    TicketPrice,
-    CreatedAt,
-    UpdatedAt
-FROM Movies
 ```
 
 ### GetById
-We create a new instance of `SqlConnection`, use `Dapper` to execute query by passing the id, dapper would map the columns to properties.
+We use moviesCollection and filter on the `Id` property of the documents to get first or default instance of collection matching with passed parameter.
 ```csharp
 public async Task<Movie?> GetById(Guid id)
 {
-    await using var connection = new SqlConnection(this.connectionString);
-    return await connection.QueryFirstOrDefaultAsync<Movie?>(
-        sqlHelper.GetSqlFromEmbeddedResource("GetById"),
-        new { id },
-        commandType: System.Data.CommandType.Text
-        );
+    return await moviesCollection.Find(x => x.Id == id).FirstOrDefaultAsync();
 }
-```
-And coresponding sql from `GetById.sql` file
-```sql
-SELECT
-    Id,
-    Title,
-    Director,
-    ReleaseDate,
-    TicketPrice,
-    CreatedAt,
-    UpdatedAt
-FROM Movies
-WHERE Id = @Id
 ```
 
 ### Update
-We create a new instance of `SqlConnection`, setup parameters for query and execute the query using `Dapper` to update an existing record.
+We use moviesCollection and use `UpdateOneAsync` method filtering record with `id` parameter and passing all updateable properties as `UpdateDefinition`.
 
 Update function looks like
 ```csharp
 public async Task Update(Guid id, UpdateMovieParams updateMovieParams)
 {
-    await using var connection = new SqlConnection(this.connectionString);
-    {
-        var parameters = new
-        {
-            Id = id,
-            updateMovieParams.Title,
-            updateMovieParams.Director,
-            updateMovieParams.ReleaseDate,
-            updateMovieParams.TicketPrice,
-            UpdatedAt = DateTime.UtcNow,
-        };
-
-        await connection.ExecuteAsync(
-            this.sqlHelper.GetSqlFromEmbeddedResource("Update"),
-            parameters,
-            commandType: CommandType.Text);
-    }
+    await moviesCollection.UpdateOneAsync(
+        x => x.Id == id,
+        Builders<Movie>.Update.Combine(
+            Builders<Movie>.Update.Set(x => x.Title, updateMovieParams.Title),
+            Builders<Movie>.Update.Set(x => x.Director, updateMovieParams.Director),
+            Builders<Movie>.Update.Set(x => x.TicketPrice, updateMovieParams.TicketPrice),
+            Builders<Movie>.Update.Set(x => x.ReleaseDate, updateMovieParams.ReleaseDate),
+            Builders<Movie>.Update.Set(x => x.UpdatedAt, DateTime.UtcNow)
+        ));
 }
-```
-And corresponding sql query from `Update.sql` file
-```sql
-UPDATE Movies
-SET
-    Title = @Title,
-    Director = @Director,
-    ReleaseDate = @ReleaseDate,
-    TicketPrice = @TicketPrice,
-    UpdatedAt = @UpdatedAt
-WHERE id = @id
 ```
 
 ### Delete
-We create a new instance of `SqlConnection`, use `Dapper` to execute query by passing the id.
+We use moviesCollection and use `DeleteOneAsync` method of collection to delete the record using `id`.
 ```csharp
 public async Task Delete(Guid id)
 {
-    await using var connection = new SqlConnection(this.connectionString);
-    await connection.ExecuteAsync(
-        sqlHelper.GetSqlFromEmbeddedResource("Delete"),
-        new { id },
-        commandType: CommandType.Text
-        );
+    await moviesCollection.DeleteOneAsync(x => x.Id == id);
 }
 ```
-And corresponding sql query from `Delete.sql` file
-```sql
-DELETE
-FROM Movies
-WHERE Id = @Id
-```
 
-Please note we don't throw `RecordNotFoundException` exception as we were doing in `InMemoryMoviesStore`, reason for that is trying to delete a record with a non existent key is not considered an error in Postgres.
+Please note we don't throw `RecordNotFoundException` exception as we were doing in `InMemoryMoviesStore`, reason for that is trying to delete a record with a non existent key is not considered an error.
 
 ## Setup Dependency Injection
 Final step is to setup the Dependency Injection container to wireup the new created store. Update `Program.cs` as shown below
 ```csharp
 // builder.Services.AddSingleton<IMoviesStore, InMemoryMoviesStore>();
-builder.Services.AddScoped<IMoviesStore, SqlServerMoviesStore>();
+builder.Services.AddSingleton<IMoviesStore, MongoMoviesStore>();
 ```
 
 For simplicity I have disabled `InMemoryMoviesStore`, we can add a configuration and based on that decide which service to use at runtime. That can be a good exercise however we don't do that practically. However for traffic heavy services InMemory or Distributed Cache is used to cache results to improve performance.

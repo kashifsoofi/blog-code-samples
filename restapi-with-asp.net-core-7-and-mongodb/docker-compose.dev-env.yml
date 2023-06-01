@@ -7,6 +7,7 @@ services:
     environment:
       - MONGODB_INITDB_ROOT_USERNAME=root
       - MONGODB_INITDB_ROOT_PASSWORD=Password123
+      - MONGO_INITDB_DATABASE=Movies
     volumes:
       - moviesdbdata:/data/db
     ports:
