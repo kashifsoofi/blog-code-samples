@@ -422,14 +422,14 @@ public async void Delete_GivenRecordExists_ShouldDeleteRecord(Movie movie)
 This concludes the integration tests. Running these tests does need we start the databaes server prior to running the tests and run the migrations before running the tests. If the database is not running then the tests would not run.
 
 ## Integration Tests in CI
-Next step would be to run these integration tests in continuous integration pipeline. First step for that would be to extract the connection string used in our integration tests as a configuration that can be updated thorough environment variables.
+Next step would be to run these integration tests in continuous integration pipeline. First step for that would be to extract the connection string used in our integration tests as a configuration that can be passed through environment variables.
 
 Running integration tests in CI is dependent on having access to a database server as these tests are testing the integration of our service boundary with the database server.
 
-One option can be that we have a dedicated `dev` database instance we use for development and also use in CI pipeline. Our tests need to be tolerant of the presence of development data as `dev` data will not be clean.
+We can have a dedicated database instance we use for integration tests in CI pipeline. Our tests need to be tolerant of the presence of data inserted by other CI runs. However it would incur some costs to keep that instance running. Another option can be to use a `dev` instance that is also used in CI pipeline, again tests need to be tolerant of the presence of other tests and dev data.
 
 In the age of containerization we can leverage [Docker](https://www.docker.com/) to spin up a clean database container for each CI run,
-apply migrations and then execute tests. We have 2 optinos here
+apply migrations and then execute tests. We have 2 options here
 1. We use our CI pipeline to manage containers and as pre step start up database container and execute migrations before running integration tests.
 2. We bake in pre step in our integration tests to start up database container and apply migrations before executing integration tests.
 
