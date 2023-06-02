@@ -1,0 +1,31 @@
+﻿version: '3.7'
+
+services:
+  movies.db:
+    image: postgres:14-alpine
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=Password123
+      - POSTGRES_DB=moviesdb
+    volumes:
+      - moviesdbdata:/var/lib/postgresql/data/
+    ports:
+      - "5432:5432"
+    restart: on-failure
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -q -d $${POSTGRES_DB} -U $${POSTGRES_USER}"]
+      timeout: 10s
+      interval: 5s
+      retries: 10
+
+  movies.db.migrations:
+    depends_on:
+      - movies.db
+    image: movies.db.migrations
+    build:
+      context: ./db/
+      dockerfile: Dockerfile
+    command: '"Host=movies.db;Username=postgres;Password=Password123;Database=moviesdb;Integrated Security=false;"'
+
+volumes:
+  moviesdbdata:
