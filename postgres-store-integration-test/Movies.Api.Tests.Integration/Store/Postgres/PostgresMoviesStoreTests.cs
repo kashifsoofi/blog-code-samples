@@ -125,4 +125,37 @@ public class PostgresMoviesStoreTests : IAsyncLifetime
         // Act & Assert
         await Assert.ThrowsAsync<DuplicateKeyException>(async () => await sut.Create(createMovieParams));
     }
+
+    [Theory]
+    [AutoData]
+    public async void Update_GivenRecordExists_ShouldUpdateRecord(Movie movie, UpdateMovieParams updateMovieParams)
+    {
+        // Arrange
+        await moviesDatabaseHelper.AddRecordAsync(movie);
+
+        // Act
+        await sut.Update(movie.Id, updateMovieParams);
+
+        // Assert
+        var saved = await moviesDatabaseHelper.GetRecordAsync(movie.Id);
+
+        saved.Should().BeEquivalentTo(updateMovieParams, x => x.Excluding(p => p.ReleaseDate));
+        saved.ReleaseDate.Should().BeCloseTo(updateMovieParams.ReleaseDate, TimeSpan.FromSeconds(1));
+        saved.UpdatedAt.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(1));
+    }
+
+    [Theory]
+    [AutoData]
+    public async void Delete_GivenRecordExists_ShouldDeleteRecord(Movie movie)
+    {
+        // Arrange
+        await moviesDatabaseHelper.AddRecordAsync(movie);
+
+        // Act
+        await sut.Delete(movie.Id);
+
+        // Assert
+        var loaded = await moviesDatabaseHelper.GetRecordAsync(movie.Id);
+        loaded.Should().BeNull();
+    }
 }

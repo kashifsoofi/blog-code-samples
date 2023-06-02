@@ -344,25 +344,25 @@ public async void GetAll_GivenRecordsExist_ShouldReturnCollection(List<Movie> mo
 ### Create Tests
 First test for `Create` is straight forward, its going to call `Create` to create a record and then load that record using `moviesDatabaseHelper` and compare it with passed parameter.
 ```csharp
-    [Theory]
-    [AutoData]
-    public async void Create_GivenRecordDoesNotExist_ShouldCreateRecord(CreateMovieParams createMovieParams)
-    {
-        // Arrange
-        // Act
-        await sut.Create(createMovieParams);
-        moviesDatabaseHelper.TrackId(createMovieParams.Id);
+[Theory]
+[AutoData]
+public async void Create_GivenRecordDoesNotExist_ShouldCreateRecord(CreateMovieParams createMovieParams)
+{
+    // Arrange
+    // Act
+    await sut.Create(createMovieParams);
+    moviesDatabaseHelper.TrackId(createMovieParams.Id);
 
-        // Assert
-        var createdMovie = await moviesDatabaseHelper.GetRecordAsync(createMovieParams.Id);
+    // Assert
+    var createdMovie = await moviesDatabaseHelper.GetRecordAsync(createMovieParams.Id);
 
-        createdMovie.Should().BeEquivalentTo(createMovieParams, x => x.Excluding(p => p.ReleaseDate));
-        createdMovie.ReleaseDate.Should().BeCloseTo(createMovieParams.ReleaseDate, TimeSpan.FromSeconds(1));
-        createdMovie.CreatedAt.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(1));
-        createdMovie.UpdatedAt.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(1));
-    }
+    createdMovie.Should().BeEquivalentTo(createMovieParams, x => x.Excluding(p => p.ReleaseDate));
+    createdMovie.ReleaseDate.Should().BeCloseTo(createMovieParams.ReleaseDate, TimeSpan.FromSeconds(1));
+    createdMovie.CreatedAt.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(1));
+    createdMovie.UpdatedAt.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(1));
+}
 ```
-2nd test is to check if the method thorws an exeption if the id already exists.
+2nd test is to check if the method thorws an exeption if the id already exists. We will use `moviesDatabaseHelper` to add a new record first and then try to create a new record.
 ```csharp
 [Theory]
 [AutoData]
@@ -378,8 +378,62 @@ public async void Create_GivenRecordWithIdExists_ShouldThrowDuplicateKeyExceptio
 }
 ```
 
+### Update Tests
+To test update, first we will create a record and then call the `Update` method of store to update the record. After updating we will use the `moviesDatabaseHelper` to load the saved record and verify if the saved record has expected values.
 ```csharp
+[Theory]
+[AutoData]
+public async void Update_GivenRecordExists_ShouldUpdateRecord(Movie movie, UpdateMovieParams updateMovieParams)
+{
+    // Arrange
+    await moviesDatabaseHelper.AddRecordAsync(movie);
+
+    // Act
+    await sut.Update(movie.Id, updateMovieParams);
+
+    // Assert
+    var saved = await moviesDatabaseHelper.GetRecordAsync(movie.Id);
+
+    saved.Should().BeEquivalentTo(updateMovieParams, x => x.Excluding(p => p.ReleaseDate));
+    saved.ReleaseDate.Should().BeCloseTo(updateMovieParams.ReleaseDate, TimeSpan.FromSeconds(1));
+    saved.UpdatedAt.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(1));
+}
 ```
+
+### Delete Tests
+To test delete, first we will add a new record using `moviesDatabaseHelper`, then call `Delete` method on store. To verify we will load the record and then assert the loaded values is `null`.
+```csharp
+[Theory]
+[AutoData]
+public async void Delete_GivenRecordExists_ShouldDeleteRecord(Movie movie)
+{
+    // Arrange
+    await moviesDatabaseHelper.AddRecordAsync(movie);
+
+    // Act
+    await sut.Delete(movie.Id);
+
+    // Assert
+    var loaded = await moviesDatabaseHelper.GetRecordAsync(movie.Id);
+    loaded.Should().BeNull();
+}
+```
+
+This concludes the integration tests. Running these tests does need we start the databaes server prior to running the tests and run the migrations before running the tests. If the database is not running then the tests would not run.
+
+## Automated Integration Tests
+Next step would be to run these integration tests in continuous integration pipeline. First step for that would be to extract the connection string used in our integration tests as a configuration that can be updated thorough environment variables.
+
+Running integration tests in CI is dependent on having access to a database server as these tests are testing the integration of our service boundary with the database server.
+
+One option can be that we have a dedicated `dev` database instance we use for development and also use in CI pipeline. Our tests need to be tolerant of the presence of development data as `dev` data will not be clean.
+
+In the age of containerization we can leverage [Docker](https://www.docker.com/) to spin up a clean database container for each CI run,
+apply migrations and then execute tests. We have 2 optinos here
+1. We use our CI pipeline to manage containers and as pre step start up database container and execute migrations before running integration tests.
+2. We bake in pre step in our integration tests to start up database container and apply migrations before executing integration tests.
+
+I will touch on these 2 in next posts.
 
 ## References
 In no particular order  
@@ -390,4 +444,5 @@ In no particular order
 * [Npgsql](https://www.npgsql.org/doc/index.html)
 * [AutoFixture](https://github.com/AutoFixture/AutoFixture)
 * [FluentAssertions](https://fluentassertions.com/)
+* [Docker](https://www.docker.com/)
 * And many more
