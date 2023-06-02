@@ -431,7 +431,7 @@ We can have a dedicated database instance we use for integration tests in CI pip
 In the age of containerization we can leverage [Docker](https://www.docker.com/) to spin up a clean database container for each CI run,
 apply migrations and then execute tests. We have 2 options here
 1. We use our CI pipeline to manage containers and as pre step start up database container and execute migrations before running integration tests.
-2. We bake in pre step in our integration tests to start up database container and apply migrations before executing integration tests.
+2. We bake pre step in our integration tests to start up database container and apply migrations before executing integration tests.
 
 I will touch on these 2 in next posts.
 
