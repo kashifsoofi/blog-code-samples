@@ -421,7 +421,7 @@ public async void Delete_GivenRecordExists_ShouldDeleteRecord(Movie movie)
 
 This concludes the integration tests. Running these tests does need we start the databaes server prior to running the tests and run the migrations before running the tests. If the database is not running then the tests would not run.
 
-## Automated Integration Tests
+## Integration Tests in CI
 Next step would be to run these integration tests in continuous integration pipeline. First step for that would be to extract the connection string used in our integration tests as a configuration that can be updated thorough environment variables.
 
 Running integration tests in CI is dependent on having access to a database server as these tests are testing the integration of our service boundary with the database server.
