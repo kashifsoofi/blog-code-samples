@@ -23,6 +23,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "up", "up", "{316FEAEA-E679-
 		db\up\20230518_1800_extension_uuid_ossp_create.sql = db\up\20230518_1800_extension_uuid_ossp_create.sql
 	EndProjectSection
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Movies.Api.Tests.Integration", "Movies.Api.Tests.Integration\Movies.Api.Tests.Integration.csproj", "{463FF27B-09C8-49F9-9D34-2A2E2374D701}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -33,6 +35,10 @@ Global
 		{764C7B37-4011-4757-B829-D844C9FCB1E8}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{764C7B37-4011-4757-B829-D844C9FCB1E8}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{764C7B37-4011-4757-B829-D844C9FCB1E8}.Release|Any CPU.Build.0 = Release|Any CPU
+		{463FF27B-09C8-49F9-9D34-2A2E2374D701}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{463FF27B-09C8-49F9-9D34-2A2E2374D701}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{463FF27B-09C8-49F9-9D34-2A2E2374D701}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{463FF27B-09C8-49F9-9D34-2A2E2374D701}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
