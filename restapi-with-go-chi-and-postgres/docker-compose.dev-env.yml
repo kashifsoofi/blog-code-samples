@@ -1,0 +1,26 @@
+version: '3.7'
+
+services:
+  movie.db:
+    image: postgres:alpine
+    ports:
+      - "5432:5432"
+    volumes:
+      - moviedbdata:/var/lib/postgresql/data/
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=Password123
+      - POSTGRES_DB=moviedb
+  
+  movie.db.migrations:
+    depends_on:
+      - movie.db
+    image: movie.db.migrations
+    build:
+      context: ./db/
+      dockerfile: Dockerfile
+    command: "postgresql://postgres:Password123@movie.db:5432/moviedb?sslmode=disable up"
+
+volumes:
+  moviedbdata:
+  
