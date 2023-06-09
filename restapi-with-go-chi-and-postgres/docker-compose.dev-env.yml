@@ -10,10 +10,10 @@ services:
     volumes:
       - moviesdbdata:/var/lib/postgresql/data/
     ports:
-      - “5432:5432”
+      - "5432:5432"
     restart: on-failure
     healthcheck:
-      test: [ “CMD-SHELL”, “pg_isready -q -d moviesdb -U Password123“]
+      test: [ "CMD-SHELL", "pg_isready -q -d moviesdb -U postgres"]
       timeout: 10s
       interval: 5s
       retries: 10

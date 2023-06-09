@@ -321,6 +321,11 @@ store := postgres.NewPostgresMoviesStore(cfg.DatabaseURL)
 ## Test
 I am not adding any unit or integration tests for this tutorial, perhaps a following tutorial. But all the endpoints can be tested either using Postman for by following test plan from [previous article](https://kashifsoofi.github.io/go/rest/restapi-with-go-chi-and-inmemory-store/#testing).
 
+You can start rest api with postgres by executing following
+```shell
+DATABASE_URL=postgresql://postgres:Password123@localhost:5432/moviesdb?sslmode=disable go run main.go
+```
+
 ## Source
 Source code for the demo application is hosted on GitHub in [blog-code-samples](https://github.com/kashifsoofi/blog-code-samples/tree/main/restapi-with-go-chi-and-postgres) repository.
 
