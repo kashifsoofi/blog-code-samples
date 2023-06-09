@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"movies-api/store"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -104,11 +105,13 @@ func (s *PostgresMoviesStore) Create(ctx context.Context, createMovieParams stor
 	if _, err := s.dbx.NamedExecContext(
 		ctx,
 		`INSERT INTO movies
-			(id, title, director, release_date, ticket_price, create_at, updated_at)
+			(id, title, director, release_date, ticket_price, created_at, updated_at)
 		VALUES
 			(:id, :title, :director, :release_date, :ticket_price, :created_at, :updated_at)`,
 		movie); err != nil {
-		// TODO: handle duplicate key error
+		if strings.Contains(err.Error(), "SQLSTATE 23505") {
+			return &store.DuplicateIDError{ID: createMovieParams.ID}
+		}
 		return err
 	}
 
