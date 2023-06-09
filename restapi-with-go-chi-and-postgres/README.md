@@ -109,6 +109,7 @@ import (
 	"context"
 	"movies-api/store"
 
+	_ "github.com/jackc/pgx/stdlib"
 	"github.com/jmoiron/sqlx"
 )
 
