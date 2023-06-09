@@ -1,26 +1,31 @@
 version: '3.7'
 
 services:
-  movie.db:
-    image: postgres:alpine
-    ports:
-      - "5432:5432"
-    volumes:
-      - moviedbdata:/var/lib/postgresql/data/
+  movies.db:
+    image: postgres:14-alpine
     environment:
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=Password123
-      - POSTGRES_DB=moviedb
-  
-  movie.db.migrations:
+      - POSTGRES_DB=moviesdb
+    volumes:
+      - moviesdbdata:/var/lib/postgresql/data/
+    ports:
+      - “5432:5432”
+    restart: on-failure
+    healthcheck:
+      test: [ “CMD-SHELL”, “pg_isready -q -d moviesdb -U Password123“]
+      timeout: 10s
+      interval: 5s
+      retries: 10
+
+  movies.db.migrations:
     depends_on:
-      - movie.db
-    image: movie.db.migrations
+      - movies.db
+    image: movies.db.migrations
     build:
       context: ./db/
       dockerfile: Dockerfile
-    command: "postgresql://postgres:Password123@movie.db:5432/moviedb?sslmode=disable up"
+    command: "postgresql://postgres:Password123@movies.db:5432/moviesdb?sslmode=disable up"
 
 volumes:
-  moviedbdata:
-  
+  moviesdbdata:

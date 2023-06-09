@@ -4,4 +4,4 @@ FROM migrate/migrate
 COPY ./migrations /migrations
 
 ENTRYPOINT [ "migrate", "-path", "/migrations", "-database"]
-CMD ["DATABASE_URL up"]
+CMD ["postgresql://postgres:Password123@movies.db:5432/moviesdb?sslmode=disable up"]
