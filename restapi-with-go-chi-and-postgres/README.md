@@ -1,5 +1,5 @@
-# REST API with Go, Chi and InMemory Store
-This is a continuation of an earlier post [REST API with Go, Chi and InMemory Store](https://kashifsoofi.github.io/go/rest/restapi-with-go-chi-and-inmemory-store/). In this tutorial I will extend the service to store data in a [Postgres Database](https://www.postgresql.org/). I will use [Docker](https://www.docker.com/) to run Postgres and use the same to run database migrations.
+# REST API with Go, Chi and Postgres
+This is a continuation of an earlier post [REST API with Go, Chi and InMemory Store](https://kashifsoofi.github.io/go/rest/restapi-with-go-chi-and-inmemory-store/). In this tutorial I will extend the service to store data in a [Postgres](https://www.postgresql.org/) database. I will use [Docker](https://www.docker.com/) to run Postgres and use the same to run database migrations.
 
 ## Setup Database Server
 I will be using a docker-compose to run Postgres in a docker container. This would allow us the add more services that our rest api is depenedent on e.g. redis server for distributed caching.
@@ -336,6 +336,8 @@ Source code for the demo application is hosted on GitHub in [blog-code-samples](
 ## References
 In no particular order
 * [What is a REST API?](https://www.ibm.com/topics/rest-apis)
+* [Postgres](https://www.postgresql.org/)
+* [Docker](https://www.docker.com/)
 * [envconfig](https://github.com/kelseyhightower/envconfig)
 * [chi](https://github.com/go-chi/chi)
 * [migrate](https://github.com/golang-migrate/migrate)
