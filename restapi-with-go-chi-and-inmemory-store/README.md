@@ -145,7 +145,7 @@ func NewUpdateMovieParams(
 
 type MoviesStore interface {
 	GetAll(ctx context.Context) ([]*Movie, error)
-	GetByID(ctx context.Context, id uuid.UUID) (*Movie, error)
+	GetById(ctx context.Context, id uuid.UUID) (*Movie, error)
 	Create(ctx context.Context, createMovieParams CreateMovieParams) error
 	Update(ctx context.Context, id uuid.UUID, updateMovieParams UpdateMovieParams) error
 	Delete(ctx context.Context, id uuid.UUID) error
@@ -216,7 +216,7 @@ func (s *InMemoryMoviesStore) GetAll(ctx context.Context) ([]*store.Movie, error
 	return movies, nil
 }
 
-func (s *InMemoryMoviesStore) GetByID(ctx context.Context, id uuid.UUID) (*store.Movie, error) {
+func (s *InMemoryMoviesStore) GetById(ctx context.Context, id uuid.UUID) (*store.Movie, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
@@ -497,7 +497,7 @@ func (s *Server) handleGetMovie() http.HandlerFunc {
 			return
 		}
 
-		movie, err := s.store.GetByID(r.Context(), id)
+		movie, err := s.store.GetById(r.Context(), id)
 		if err != nil {
 			var rnfErr *store.RecordNotFoundError
 			if errors.As(err, &rnfErr) {
@@ -711,6 +711,8 @@ I am going to list steps to manually test the api endpoints, as we don't have `S
 go run main.go
 ```
 Execute following tests in order, remember to update the port if you are running on a different port than 8080.
+
+> **_NOTE:_**  I have not added `created_at` and `updated_at` fields in responses below.
 
 ### Tests
 #### Get All returns empty list

@@ -210,7 +210,7 @@ If there is an error in parsing `DATETIME` column, remember to add `parseTime=tr
 ### GetById
 We connect to database using `connect` helper method, then use `GetContext` method to execute select query, `sqlx` would map the columns to fields. If the driver returns `sql.ErrNoRows` then we return `store.RecordNotFoundError`. If successful loaded `movie` record is returned.
 ```go
-func (s *MySqlMoviesStore) GetByID(ctx context.Context, id uuid.UUID) (*store.Movie, error) {
+func (s *MySqlMoviesStore) GetById(ctx context.Context, id uuid.UUID) (*store.Movie, error) {
 	err := s.connect(ctx)
 	if err != nil {
 		return nil, err

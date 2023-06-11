@@ -59,7 +59,7 @@ func (s *PostgresMoviesStore) GetAll(ctx context.Context) ([]*store.Movie, error
 	return movies, nil
 }
 
-func (s *PostgresMoviesStore) GetByID(ctx context.Context, id uuid.UUID) (*store.Movie, error) {
+func (s *PostgresMoviesStore) GetById(ctx context.Context, id uuid.UUID) (*store.Movie, error) {
 	err := s.connect(ctx)
 	if err != nil {
 		return nil, err
@@ -93,7 +93,7 @@ func (s *PostgresMoviesStore) Create(ctx context.Context, createMovieParams stor
 	defer s.close()
 
 	movie := store.Movie{
-		ID:          createMovieParams.ID,
+		Id:          createMovieParams.Id,
 		Title:       createMovieParams.Title,
 		Director:    createMovieParams.Director,
 		ReleaseDate: createMovieParams.ReleaseDate,
@@ -110,7 +110,7 @@ func (s *PostgresMoviesStore) Create(ctx context.Context, createMovieParams stor
 			(:id, :title, :director, :release_date, :ticket_price, :created_at, :updated_at)`,
 		movie); err != nil {
 		if strings.Contains(err.Error(), "SQLSTATE 23505") {
-			return &store.DuplicateIDError{ID: createMovieParams.ID}
+			return &store.DuplicateIDError{ID: createMovieParams.Id}
 		}
 		return err
 	}
@@ -126,7 +126,7 @@ func (s *PostgresMoviesStore) Update(ctx context.Context, id uuid.UUID, updateMo
 	defer s.close()
 
 	movie := store.Movie{
-		ID:          id,
+		Id:          id,
 		Title:       updateMovieParams.Title,
 		Director:    updateMovieParams.Director,
 		ReleaseDate: updateMovieParams.ReleaseDate,

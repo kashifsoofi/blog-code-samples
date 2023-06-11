@@ -62,7 +62,7 @@ func (s *MySqlMoviesStore) GetAll(ctx context.Context) ([]*store.Movie, error) {
 	return movies, nil
 }
 
-func (s *MySqlMoviesStore) GetByID(ctx context.Context, id uuid.UUID) (*store.Movie, error) {
+func (s *MySqlMoviesStore) GetById(ctx context.Context, id uuid.UUID) (*store.Movie, error) {
 	err := s.connect(ctx)
 	if err != nil {
 		return nil, err
