@@ -64,7 +64,7 @@ func NewUpdateMovieParams(
 
 type MoviesStore interface {
 	GetAll(ctx context.Context) ([]*Movie, error)
-	GetByID(ctx context.Context, id uuid.UUID) (*Movie, error)
+	GetById(ctx context.Context, id uuid.UUID) (*Movie, error)
 	Create(ctx context.Context, createMovieParams CreateMovieParams) error
 	Update(ctx context.Context, id uuid.UUID, updateMovieParams UpdateMovieParams) error
 	Delete(ctx context.Context, id uuid.UUID) error

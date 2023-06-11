@@ -8,7 +8,7 @@ import (
 )
 
 type Movie struct {
-	ID          uuid.UUID
+	Id          uuid.UUID
 	Title       string
 	Director    string
 	ReleaseDate time.Time
@@ -18,7 +18,7 @@ type Movie struct {
 }
 
 type CreateMovieParams struct {
-	ID          uuid.UUID
+	Id          uuid.UUID
 	Title       string
 	Director    string
 	ReleaseDate time.Time
@@ -33,7 +33,7 @@ func NewCreateMovieParams(
 	ticketPrice float64,
 ) CreateMovieParams {
 	return CreateMovieParams{
-		ID:          id,
+		Id:          id,
 		Title:       title,
 		Director:    director,
 		ReleaseDate: releaseDate,
@@ -64,7 +64,7 @@ func NewUpdateMovieParams(
 
 type MoviesStore interface {
 	GetAll(ctx context.Context) ([]*Movie, error)
-	GetByID(ctx context.Context, id uuid.UUID) (*Movie, error)
+	GetById(ctx context.Context, id uuid.UUID) (*Movie, error)
 	Create(ctx context.Context, createMovieParams CreateMovieParams) error
 	Update(ctx context.Context, id uuid.UUID, updateMovieParams UpdateMovieParams) error
 	Delete(ctx context.Context, id uuid.UUID) error

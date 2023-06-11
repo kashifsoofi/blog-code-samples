@@ -144,7 +144,7 @@ func (s *PostgresMoviesStore) close() error {
 Update `Movie` struct in `movies_store.go` file to add db tags, this allows sqlx to map struct members to column names.
 ```go
 type Movie struct {
-	ID          uuid.UUID
+	Id          uuid.UUID
 	Title       string
 	Director    string
 	ReleaseDate time.Time `db:"release_date"`
@@ -166,7 +166,7 @@ func (s *PostgresMoviesStore) Create(ctx context.Context, createMovieParams stor
 	defer s.close()
 
 	movie := store.Movie{
-		ID:          createMovieParams.ID,
+		Id:          createMovieParams.Id,
 		Title:       createMovieParams.Title,
 		Director:    createMovieParams.Director,
 		ReleaseDate: createMovieParams.ReleaseDate,
@@ -183,7 +183,7 @@ func (s *PostgresMoviesStore) Create(ctx context.Context, createMovieParams stor
 			(:id, :title, :director, :release_date, :ticket_price, :created_at, :updated_at)`,
 		movie); err != nil {
 		if strings.Contains(err.Error(), "SQLSTATE 23505") {
-			return &store.DuplicateIDError{ID: createMovieParams.ID}
+			return &store.DuplicateIDError{Id: createMovieParams.Id}
 		}
 		return err
 	}
@@ -219,7 +219,7 @@ func (s *PostgresMoviesStore) GetAll(ctx context.Context) ([]*store.Movie, error
 ### GetById
 We connect to database using `connect` helper method, then use `GetContext` method to execute select query, `sqlx` would map the columns to fields. If the driver returns `sql.ErrNoRows` then we return `store.RecordNotFoundError`. If successful loaded `movie` record is returned.
 ```go
-func (s *PostgresMoviesStore) GetByID(ctx context.Context, id uuid.UUID) (*store.Movie, error) {
+func (s *PostgresMoviesStore) GetById(ctx context.Context, id uuid.UUID) (*store.Movie, error) {
 	err := s.connect(ctx)
 	if err != nil {
 		return nil, err
@@ -257,7 +257,7 @@ func (s *PostgresMoviesStore) Update(ctx context.Context, id uuid.UUID, updateMo
 	defer s.close()
 
 	movie := store.Movie{
-		ID:          id,
+		Id:          id,
 		Title:       updateMovieParams.Title,
 		Director:    updateMovieParams.Director,
 		ReleaseDate: updateMovieParams.ReleaseDate,
