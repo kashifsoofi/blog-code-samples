@@ -8,7 +8,7 @@ Focus of this tutorial is to write a REST API with Go.
 We would be managing a `Movie` resource with current project. It is not an accurate representation of how you would model a movie resource in an acutal system, just a mix of few basic types and how to handle in rest api.
 | Field       | Type    |
 |-------------|---------|
-| ID          | UUID    |
+| Id          | UUID    |
 | Title       | String  |
 | Director    | String  |
 | Director    | String  |
@@ -89,7 +89,7 @@ import (
 )
 
 type Movie struct {
-	ID          uuid.UUID
+	Id          uuid.UUID
 	Title       string
 	Director    string
 	ReleaseDate time.Time
@@ -99,7 +99,7 @@ type Movie struct {
 }
 
 type CreateMovieParams struct {
-	ID          uuid.UUID
+	Id          uuid.UUID
 	Title       string
 	Director    string
 	ReleaseDate time.Time
@@ -114,7 +114,7 @@ func NewCreateMovieParams(
 	ticketPrice float64,
 ) CreateMovieParams {
 	return CreateMovieParams{
-		ID:          id,
+		Id:          id,
 		Title:       title,
 		Director:    director,
 		ReleaseDate: releaseDate,
@@ -162,12 +162,12 @@ import (
 	"github.com/google/uuid"
 )
 
-type DuplicateIDError struct {
-	ID uuid.UUID
+type DuplicateIdError struct {
+	Id uuid.UUID
 }
 
-func (e *DuplicateIDError) Error() string {
-	return fmt.Sprintf("duplicate movie id: %v", e.ID)
+func (e *DuplicateIdError) Error() string {
+	return fmt.Sprintf("duplicate movie id: %v", e.Id)
 }
 
 type RecordNotFoundError struct{}
@@ -232,12 +232,12 @@ func (s *InMemoryMoviesStore) Create(ctx context.Context, createMovieParams stor
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	if _, ok := s.movies[createMovieParams.ID]; ok {
-		return &store.DuplicateIDError{ID: createMovieParams.ID}
+	if _, ok := s.movies[createMovieParams.Id]; ok {
+		return &store.DuplicateIdError{Id: createMovieParams.Id}
 	}
 
 	movie := &store.Movie{
-		ID:          createMovieParams.ID,
+		Id:          createMovieParams.Id,
 		Title:       createMovieParams.Title,
 		Director:    createMovieParams.Director,
 		ReleaseDate: createMovieParams.ReleaseDate,
@@ -246,7 +246,7 @@ func (s *InMemoryMoviesStore) Create(ctx context.Context, createMovieParams stor
 		UpdatedAt:   time.Now().UTC(),
 	}
 
-	s.movies[movie.ID] = movie
+	s.movies[movie.Id] = movie
 	return nil
 }
 
@@ -394,7 +394,7 @@ func ErrConflict(err error) render.Renderer {
 	return &ErrResponse{
 		Err:            err,
 		HTTPStatusCode: 409,
-		StatusText:     "Duplicate ID",
+		StatusText:     "Duplicate Id",
 		ErrorText:      err.Error(),
 	}
 }
@@ -455,11 +455,11 @@ func (s *Server) handleGetHealth() http.HandlerFunc {
 
 ## Movies Endpoints Handlers
 
-### Get Movie By ID
+### Get Movie By Id
 Let's start by adding a struct we would use to return a `Movie` to the caller of our REST service and also implement `Renderer` interface so that we can use `Render` method to return data.
 ```go
 type movieResponse struct {
-	ID          uuid.UUID `json:"id"`
+	Id          uuid.UUID `json:"id"`
 	Title       string    `json:"title"`
 	Director    string    `json:"director"`
 	ReleaseDate time.Time `json:"release_date"`
@@ -468,7 +468,7 @@ type movieResponse struct {
 
 func NewMovieResponse(m *store.Movie) movieResponse {
 	return movieResponse{
-		ID:          m.ID,
+		Id:          m.Id,
 		Title:       m.Title,
 		Director:    m.Director,
 		ReleaseDate: m.ReleaseDate,
@@ -515,7 +515,7 @@ func (s *Server) handleGetMovie() http.HandlerFunc {
 ```
 
 ### Get All/List Movies
-For response we would use the same `movieResponse` struct we defined for `Get By ID`, we would just add a new method to create an array/slice of `Renderer`
+For response we would use the same `movieResponse` struct we defined for `Get By Id`, we would just add a new method to create an array/slice of `Renderer`
 ```go
 func NewMovieListResponse(movies []*store.Movie) []render.Renderer {
 	list := []render.Renderer{}
@@ -548,7 +548,7 @@ Same as get, we would start by adding a new struct to receive parameters require
 Please note we don't have `CreatedAt` and `UpdatedAt` in this struct.
 ```go
 type createMovieRequest struct {
-	ID          string    `json:"id"`
+	Id          string    `json:"id"`
 	Title       string    `json:"title"`
 	Director    string    `json:"director"`
 	ReleaseDate time.Time `json:"release_date"`
@@ -571,7 +571,7 @@ func (s *Server) handleCreateMovie() http.HandlerFunc {
 		}
 
 		createMovieParams := store.NewCreateMovieParams(
-			uuid.MustParse(data.ID),
+			uuid.MustParse(data.Id),
 			data.Title,
 			data.Director,
 			data.ReleaseDate,
@@ -579,7 +579,7 @@ func (s *Server) handleCreateMovie() http.HandlerFunc {
 		)
 		err := s.store.Create(r.Context(), createMovieParams)
 		if err != nil {
-			var dupIdErr *store.DuplicateIDError
+			var dupIdErr *store.DuplicateIdError
 			if errors.As(err, &dupIdErr) {
 				render.Render(w, r, ErrConflict(err))
 			} else {
@@ -724,7 +724,7 @@ curl --request GET --url "http://localhost:8080/api/movies"
 ```json
 []
 ```
-#### Get By ID should return Not Found
+#### Get By Id should return Not Found
 ##### Request
 ```shell
 curl --request GET --url "http://localhost:8080/api/movies/1"
@@ -733,7 +733,7 @@ curl --request GET --url "http://localhost:8080/api/movies/1"
 ```json
 []
 ```
-#### Get By ID should return Not Found
+#### Get By Id should return Not Found
 ##### Request
 ```shell
 curl --request GET --url "http://localhost:8080/api/movies/1"
@@ -742,7 +742,7 @@ curl --request GET --url "http://localhost:8080/api/movies/1"
 ```json
 []
 ```
-#### Get By ID should return Not Found
+#### Get By Id should return Not Found
 ##### Request
 ```shell
 curl --request GET --url "http://localhost:8080/api/movies/1"
@@ -751,7 +751,7 @@ curl --request GET --url "http://localhost:8080/api/movies/1"
 ```json
 []
 ```
-#### Get By ID with invalid id
+#### Get By Id with invalid id
 ##### Request
 ```shell
 curl --request GET --url "http://localhost:8080/api/movies/1"
@@ -760,7 +760,7 @@ curl --request GET --url "http://localhost:8080/api/movies/1"
 ```json
 {"status":"Bad request"}
 ```
-#### Get by ID with non-existent record
+#### Get by Id with non-existent record
 ##### Request
 ```shell
 curl --request GET --url "http://localhost:8080/api/movies/98268a96-a6ac-444f-852a-c6472129aa22"
@@ -777,14 +777,14 @@ curl --request POST --data '{ "id": "98268a96-a6ac-444f-852a-c6472129aa22", "tit
 ##### Expected Response
 ```json
 ```
-#### Create Movie with existing ID
+#### Create Movie with existing Id
 ##### Request
 ```shell
 curl --request POST --data '{ "id": "98268a96-a6ac-444f-852a-c6472129aa22", "title": "Star Wars: Episode I – The Phantom Menace", "director": "George Lucas", "release_date": "1999-05-16T01:01:01.00Z", "ticket_price": 10.70 }' --url "http://localhost:8080/api/movies"
 ```
 ##### Expected Response
 ```json
-{"status":"Duplicate ID","error":"duplicate movie id: 98268a96-a6ac-444f-852a-c6472129aa22"}
+{"status":"Duplicate Id","error":"duplicate movie id: 98268a96-a6ac-444f-852a-c6472129aa22"}
 ```
 #### Get ALL Movies
 ##### Request
@@ -795,7 +795,7 @@ curl --request GET --url "http://localhost:8080/api/movies"
 ```json
 [{"id":"98268a96-a6ac-444f-852a-c6472129aa22","title":"Star Wars: Episode I – The Phantom Menace","director":"George Lucas","release_date":"1999-05-16T01:01:01Z","ticket_price":10.7}]
 ```
-#### Get Movie By ID
+#### Get Movie By Id
 ##### Request
 ```shell
 curl --request GET --url "http://localhost:8080/api/movies/98268a96-a6ac-444f-852a-c6472129aa22"
@@ -812,7 +812,7 @@ curl --request PUT --data '{ "title": "Star Wars: Episode I – The Phantom Mena
 ##### Expected Response
 ```json
 ```
-#### Get Movie by ID - get updated record
+#### Get Movie by Id - get updated record
 ##### Request
 ```shell
 curl --request GET --url "http://localhost:8080/api/movies/98268a96-a6ac-444f-852a-c6472129aa22"

@@ -48,7 +48,7 @@ func (s *InMemoryMoviesStore) Create(ctx context.Context, createMovieParams stor
 	defer s.mu.Unlock()
 
 	if _, ok := s.movies[createMovieParams.Id]; ok {
-		return &store.DuplicateIDError{ID: createMovieParams.Id}
+		return &store.DuplicateIdError{Id: createMovieParams.Id}
 	}
 
 	movie := &store.Movie{

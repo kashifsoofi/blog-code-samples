@@ -83,7 +83,7 @@ func (s *Server) handleGetMovie() http.HandlerFunc {
 }
 
 type CreateMovieRequest struct {
-	ID          string    `json:"id"`
+	Id          string    `json:"id"`
 	Title       string    `json:"title"`
 	Director    string    `json:"director"`
 	ReleaseDate time.Time `json:"release_date"`
@@ -103,7 +103,7 @@ func (s *Server) handleCreateMovie() http.HandlerFunc {
 		}
 
 		createMovieParams := store.NewCreateMovieParams(
-			uuid.MustParse(data.ID),
+			uuid.MustParse(data.Id),
 			data.Title,
 			data.Director,
 			data.ReleaseDate,
@@ -111,7 +111,7 @@ func (s *Server) handleCreateMovie() http.HandlerFunc {
 		)
 		err := s.store.Create(r.Context(), createMovieParams)
 		if err != nil {
-			var dupIdErr *store.DuplicateIDError
+			var dupIdErr *store.DuplicateIdError
 			if errors.As(err, &dupIdErr) {
 				render.Render(w, r, ErrConflict(err))
 			} else {
