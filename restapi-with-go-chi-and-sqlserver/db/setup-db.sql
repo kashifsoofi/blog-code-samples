@@ -1,0 +1,5 @@
+IF NOT EXISTS(SELECT * FROM sys.databases WHERE name = 'Movies')
+BEGIN
+    CREATE DATABASE Movies
+    SELECT 'READY'
+END
