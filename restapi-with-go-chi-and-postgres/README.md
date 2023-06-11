@@ -99,7 +99,7 @@ docker-compose -f docker-compose.dev-env.yml up -d
 ```
 
 ## Postgres Movies Store
-I will be using [sqlx](https://github.com/jmoiron/sqlx) - sqlx is a library which provides a set of extensions on go's standard `database/sql` library.
+I will be using [sqlx](https://github.com/jmoiron/sqlx) to execute queries and map columns to struct fields and vice versa, `sqlx` is a library which provides a set of extensions on go's standard `database/sql` library.
 
 Add a new folder named `postgres` under `store` and a new file named `postgres_movies_store.go`. Add a new struct `PostgresMoviesStore` containing `databaseUrl` and a pointer to `sqlx.DB`, also add helper methods to `connect` to database and `close` connection as well.
 ```go

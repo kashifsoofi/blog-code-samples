@@ -8,7 +8,7 @@ import (
 )
 
 type Movie struct {
-	ID          uuid.UUID
+	Id          uuid.UUID
 	Title       string
 	Director    string
 	ReleaseDate time.Time
@@ -18,7 +18,7 @@ type Movie struct {
 }
 
 type CreateMovieParams struct {
-	ID          uuid.UUID
+	Id          uuid.UUID
 	Title       string
 	Director    string
 	ReleaseDate time.Time
@@ -33,7 +33,7 @@ func NewCreateMovieParams(
 	ticketPrice float64,
 ) CreateMovieParams {
 	return CreateMovieParams{
-		ID:          id,
+		Id:          id,
 		Title:       title,
 		Director:    director,
 		ReleaseDate: releaseDate,

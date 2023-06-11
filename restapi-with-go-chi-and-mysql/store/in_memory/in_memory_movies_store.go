@@ -47,12 +47,12 @@ func (s *InMemoryMoviesStore) Create(ctx context.Context, createMovieParams stor
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	if _, ok := s.movies[createMovieParams.ID]; ok {
-		return &store.DuplicateIDError{ID: createMovieParams.ID}
+	if _, ok := s.movies[createMovieParams.Id]; ok {
+		return &store.DuplicateIDError{ID: createMovieParams.Id}
 	}
 
 	movie := &store.Movie{
-		ID:          createMovieParams.ID,
+		Id:          createMovieParams.Id,
 		Title:       createMovieParams.Title,
 		Director:    createMovieParams.Director,
 		ReleaseDate: createMovieParams.ReleaseDate,
@@ -61,7 +61,7 @@ func (s *InMemoryMoviesStore) Create(ctx context.Context, createMovieParams stor
 		UpdatedAt:   time.Now().UTC(),
 	}
 
-	s.movies[movie.ID] = movie
+	s.movies[movie.Id] = movie
 	return nil
 }
 
