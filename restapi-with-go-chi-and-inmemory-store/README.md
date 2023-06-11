@@ -5,7 +5,7 @@ An API, or application programming interface, is a set of rules that define how 
 Focus of this tutorial is to write a REST API with Go.
 
 # Movie Resource
-We would be managing a `Movie` resource with current project. It is not an accurate representation of how you would model a movie resource in an acutal system, just a mix of few basic types and how to handle in rest api.
+We will be managing a `Movie` resource with the current project. It is not an accurate representation of how you would model a movie resource in an actual system, just a mix of a few basic types and how to handle them in a REST API.
 
 | Field       | Type    |
 |-------------|---------|
