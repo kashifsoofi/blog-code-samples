@@ -155,7 +155,7 @@ type Movie struct {
 ```
 
 ### Create
-We connect to database using `connect` helper method, create a new instance of `Movie` and execute insert query with `NamedExecContext`. We are handling an `error` and return `DuplicateIDError` if `SqlState` of exception is `23505`. If insert is successful then we return `nil`.
+We connect to database using `connect` helper method, create a new instance of `Movie` and execute insert query with `NamedExecContext`. We are handling an `error` and return `DuplicateIdError` if `SqlState` of exception is `23505`. If insert is successful then we return `nil`.
 Create function looks like
 ```go
 func (s *PostgresMoviesStore) Create(ctx context.Context, createMovieParams store.CreateMovieParams) error {
@@ -183,7 +183,7 @@ func (s *PostgresMoviesStore) Create(ctx context.Context, createMovieParams stor
 			(:id, :title, :director, :release_date, :ticket_price, :created_at, :updated_at)`,
 		movie); err != nil {
 		if strings.Contains(err.Error(), "SQLSTATE 23505") {
-			return &store.DuplicateIDError{Id: createMovieParams.Id}
+			return &store.DuplicateIdError{Id: createMovieParams.Id}
 		}
 		return err
 	}

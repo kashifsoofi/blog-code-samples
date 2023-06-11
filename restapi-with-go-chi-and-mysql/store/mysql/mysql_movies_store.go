@@ -113,7 +113,7 @@ func (s *MySqlMoviesStore) Create(ctx context.Context, createMovieParams store.C
 			(:Id, :Title, :Director, :ReleaseDate, :TicketPrice, :CreatedAt, :UpdatedAt)`,
 		movie); err != nil {
 		if strings.Contains(err.Error(), "Error 1062") {
-			return &store.DuplicateIDError{ID: createMovieParams.Id}
+			return &store.DuplicateIdError{Id: createMovieParams.Id}
 		}
 		return err
 	}

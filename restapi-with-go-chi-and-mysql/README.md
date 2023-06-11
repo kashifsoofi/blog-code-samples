@@ -145,7 +145,7 @@ func (s *MySqlMoviesStore) close() error {
 ```
 
 ### Create
-We connect to database using `connect` helper method, create a new instance of `Movie` and execute insert query with `NamedExecContext`. We are handling an `error` and return `DuplicateIDError` if returned error contains text `Error 1062`. If insert is successful then we return `nil`.
+We connect to database using `connect` helper method, create a new instance of `Movie` and execute insert query with `NamedExecContext`. We are handling an `error` and return `DuplicateIdError` if returned error contains text `Error 1062`. If insert is successful then we return `nil`.
 Create function looks like
 ```go
 func (s *MySqlMoviesStore) Create(ctx context.Context, createMovieParams store.CreateMovieParams) error {
@@ -173,7 +173,7 @@ func (s *MySqlMoviesStore) Create(ctx context.Context, createMovieParams store.C
 			(:Id, :Title, :Director, :ReleaseDate, :TicketPrice, :CreatedAt, :UpdatedAt)`,
 		movie); err != nil {
 		if strings.Contains(err.Error(), "Error 1062") {
-			return &store.DuplicateIDError{ID: createMovieParams.Id}
+			return &store.DuplicateIdError{Id: createMovieParams.Id}
 		}
 		return err
 	}

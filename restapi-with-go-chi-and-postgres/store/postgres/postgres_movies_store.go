@@ -110,7 +110,7 @@ func (s *PostgresMoviesStore) Create(ctx context.Context, createMovieParams stor
 			(:id, :title, :director, :release_date, :ticket_price, :created_at, :updated_at)`,
 		movie); err != nil {
 		if strings.Contains(err.Error(), "SQLSTATE 23505") {
-			return &store.DuplicateIDError{ID: createMovieParams.Id}
+			return &store.DuplicateIdError{Id: createMovieParams.Id}
 		}
 		return err
 	}

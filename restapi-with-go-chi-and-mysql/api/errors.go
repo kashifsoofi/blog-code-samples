@@ -30,7 +30,7 @@ func ErrConflict(err error) render.Renderer {
 	return &ErrResponse{
 		Err:            err,
 		HTTPStatusCode: 409,
-		StatusText:     "Duplicate ID",
+		StatusText:     "Duplicate Id",
 		ErrorText:      err.Error(),
 	}
 }
