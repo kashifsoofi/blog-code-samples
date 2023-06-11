@@ -1,4 +1,4 @@
-# REST API with Go, Chi and MySQL
+# REST API with Go, Chi, MySQL and sqlx
 This is a continuation of an earlier post [REST API with Go, Chi and InMemory Store](https://kashifsoofi.github.io/go/rest/restapi-with-go-chi-and-inmemory-store/). In this tutorial I will extend the service to store data in a [MySQL](https://www.mysql.com/) database. I will use [Docker](https://www.docker.com/) to run MySQL and use the same to run database migrations.
 
 ## Setup Database Server

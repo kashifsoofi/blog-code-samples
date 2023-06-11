@@ -1,4 +1,4 @@
-# REST API with Go, Chi and Postgres
+# REST API with Go, Chi, Postgres and sqlx
 This is a continuation of an earlier post [REST API with Go, Chi and InMemory Store](https://kashifsoofi.github.io/go/rest/restapi-with-go-chi-and-inmemory-store/). In this tutorial I will extend the service to store data in a [Postgres](https://www.postgresql.org/) database. I will use [Docker](https://www.docker.com/) to run Postgres and use the same to run database migrations.
 
 ## Setup Database Server

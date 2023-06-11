@@ -1,4 +1,4 @@
-# REST API with Go, Chi and SQL Server
+# REST API with Go, Chi, SQL Server and sqlx
 This is a continuation of an earlier post [REST API with Go, Chi and InMemory Store](https://kashifsoofi.github.io/go/rest/restapi-with-go-chi-and-inmemory-store/). In this tutorial I will extend the service to store data in a [Microsoft SQL Server](https://www.microsoft.com/en-gb/sql-server) database. I will be using [Microsoft SQL Server - Ubuntu based images](https://hub.docker.com/_/microsoft-mssql-server) for this sample. I will use [Docker](https://www.docker.com/) to run SQL Server and use the same to run database migrations.
 
 ## Setup Database Server
