@@ -29,6 +29,8 @@ func NewMovieResponse(m *store.Movie) movieResponse {
 		Director:    m.Director,
 		ReleaseDate: m.ReleaseDate,
 		TicketPrice: m.TicketPrice,
+		CreatedAt:   m.CreatedAt,
+		UpdatedAt:   m.UpdatedAt,
 	}
 }
 
