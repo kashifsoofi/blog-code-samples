@@ -32,7 +32,7 @@ type UpdateMovieParams struct {
 	TicketPrice float64
 }
 
-type MoviesStore interface {
+type Interface interface {
 	GetAll(ctx context.Context) ([]Movie, error)
 	GetByID(ctx context.Context, id uuid.UUID) (Movie, error)
 	Create(ctx context.Context, createMovieParams CreateMovieParams) error

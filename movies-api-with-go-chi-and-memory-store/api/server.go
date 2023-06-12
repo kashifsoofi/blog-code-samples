@@ -17,11 +17,11 @@ import (
 
 type Server struct {
 	cfg    config.HTTPServer
-	store  store.MoviesStore
+	store  store.Interface
 	router *chi.Mux
 }
 
-func NewServer(cfg config.HTTPServer, store store.MoviesStore) *Server {
+func NewServer(cfg config.HTTPServer, store store.Interface) *Server {
 	srv := &Server{
 		cfg:    cfg,
 		store:  store,

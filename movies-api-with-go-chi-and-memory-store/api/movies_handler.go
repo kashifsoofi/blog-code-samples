@@ -39,7 +39,7 @@ func (hr movieResponse) Render(w http.ResponseWriter, r *http.Request) error {
 }
 
 func NewMovieListResponse(movies []store.Movie) []render.Renderer {
-	var list []render.Renderer
+	list := []render.Renderer{}
 	for _, movie := range movies {
 		mr := NewMovieResponse(movie)
 		list = append(list, mr)
