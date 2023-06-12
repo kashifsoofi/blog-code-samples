@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"time"
 
-	"movies-api/store"
+	"github.com/kashifsoofi/blog-code-samples/restapi-with-go-chi-and-memory-store/store"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/render"

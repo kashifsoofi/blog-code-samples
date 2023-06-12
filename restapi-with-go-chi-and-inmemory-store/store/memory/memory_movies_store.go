@@ -1,26 +1,27 @@
-package in_memory
+package memory
 
 import (
 	"context"
-	"movies-api/store"
 	"sync"
 	"time"
+
+	"github.com/kashifsoofi/blog-code-samples/restapi-with-go-chi-and-memory-store/store"
 
 	"github.com/google/uuid"
 )
 
-type InMemoryMoviesStore struct {
+type MemoryMoviesStore struct {
 	movies map[uuid.UUID]*store.Movie
 	mu     sync.RWMutex
 }
 
-func NewInMemoryMoviesStore() *InMemoryMoviesStore {
-	return &InMemoryMoviesStore{
+func NewMemoryMoviesStore() *MemoryMoviesStore {
+	return &MemoryMoviesStore{
 		movies: map[uuid.UUID]*store.Movie{},
 	}
 }
 
-func (s *InMemoryMoviesStore) GetAll(ctx context.Context) ([]*store.Movie, error) {
+func (s *MemoryMoviesStore) GetAll(ctx context.Context) ([]*store.Movie, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
@@ -31,7 +32,7 @@ func (s *InMemoryMoviesStore) GetAll(ctx context.Context) ([]*store.Movie, error
 	return movies, nil
 }
 
-func (s *InMemoryMoviesStore) GetById(ctx context.Context, id uuid.UUID) (*store.Movie, error) {
+func (s *MemoryMoviesStore) GetById(ctx context.Context, id uuid.UUID) (*store.Movie, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
@@ -43,7 +44,7 @@ func (s *InMemoryMoviesStore) GetById(ctx context.Context, id uuid.UUID) (*store
 	return m, nil
 }
 
-func (s *InMemoryMoviesStore) Create(ctx context.Context, createMovieParams store.CreateMovieParams) error {
+func (s *MemoryMoviesStore) Create(ctx context.Context, createMovieParams store.CreateMovieParams) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -65,7 +66,7 @@ func (s *InMemoryMoviesStore) Create(ctx context.Context, createMovieParams stor
 	return nil
 }
 
-func (s *InMemoryMoviesStore) Update(ctx context.Context, id uuid.UUID, updateMovieParams store.UpdateMovieParams) error {
+func (s *MemoryMoviesStore) Update(ctx context.Context, id uuid.UUID, updateMovieParams store.UpdateMovieParams) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -84,7 +85,7 @@ func (s *InMemoryMoviesStore) Update(ctx context.Context, id uuid.UUID, updateMo
 	return nil
 }
 
-func (s *InMemoryMoviesStore) Delete(ctx context.Context, id uuid.UUID) error {
+func (s *MemoryMoviesStore) Delete(ctx context.Context, id uuid.UUID) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 

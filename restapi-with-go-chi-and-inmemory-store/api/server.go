@@ -4,13 +4,14 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"movies-api/config"
 	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
 
-	"movies-api/store"
+	"github.com/kashifsoofi/blog-code-samples/restapi-with-go-chi-and-memory-store/config"
+
+	"github.com/kashifsoofi/blog-code-samples/restapi-with-go-chi-and-memory-store/store"
 
 	"github.com/go-chi/chi/v5"
 )

@@ -3,9 +3,10 @@ package main
 import (
 	"context"
 	"log"
-	"movies-api/api"
-	"movies-api/config"
-	"movies-api/store/in_memory"
+
+	"github.com/kashifsoofi/blog-code-samples/restapi-with-go-chi-and-memory-store/api"
+	"github.com/kashifsoofi/blog-code-samples/restapi-with-go-chi-and-memory-store/config"
+	"github.com/kashifsoofi/blog-code-samples/restapi-with-go-chi-and-memory-store/store/memory"
 )
 
 func main() {
@@ -15,7 +16,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	store := in_memory.NewInMemoryMoviesStore()
+	store := memory.NewMemoryMoviesStore()
 	server := api.NewServer(cfg.HTTPServer, store)
 	server.Start(ctx)
 }
