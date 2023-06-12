@@ -1,7 +1,6 @@
 package store
 
 import (
-	"context"
 	"time"
 
 	"github.com/google/uuid"
@@ -33,9 +32,9 @@ type UpdateMovieParams struct {
 }
 
 type Interface interface {
-	GetAll(ctx context.Context) ([]Movie, error)
-	GetByID(ctx context.Context, id uuid.UUID) (Movie, error)
-	Create(ctx context.Context, createMovieParams CreateMovieParams) error
-	Update(ctx context.Context, id uuid.UUID, updateMovieParams UpdateMovieParams) error
-	Delete(ctx context.Context, id uuid.UUID) error
+	GetAll() ([]Movie, error)
+	GetByID(id uuid.UUID) (Movie, error)
+	Create(createMovieParams CreateMovieParams) error
+	Update(id uuid.UUID, updateMovieParams UpdateMovieParams) error
+	Delete(id uuid.UUID) error
 }

@@ -17,7 +17,7 @@ We will be managing a `Movie` resource with the current project. It is not an ac
 | TicketPrice | float64 |
 
 # Project Setup
-* Create a folder for project, I named it as `movies-api-with-go-chi-and-inmemory-store` but it usually would be at the root of the GitHub repo, or a subfolder in a mono reop.
+* Create a folder for project, I named it as `movies-api-with-go-chi-and-memory-store` but it usually will be the root of the GitHub repo so you can name it appropriately e.g. `movies-api`.
 * Execute following command to initialise `go.mod` on terminal
 ```shell
 go mod init github.com/kashifsoofi/blog-code-samples/movies-api-with-go-chi-and-memory-store
@@ -55,14 +55,14 @@ type HTTPServer struct {
 	WriteTimeout time.Duration `envconfig:"HTTP_SERVER_WRITE_TIMEOUT" default:"2s"`
 }
 
-func Load() (*Configuration, error) {
-	cfg := Configuration{}
+func Load() (Configuration, error) {
+	var cfg Configuration
 	err := envconfig.Process(envPrefix, &cfg)
 	if err != nil {
-		return nil, err
+		return cfg, err
 	}
 
-	return &cfg, nil
+	return cfg, nil
 }
 ```
 This would result in an error that can be resolved by executing following on terminal.
@@ -83,7 +83,6 @@ Add a new folder named `store` and a file named `movie_store.go`. We will add an
 package store
 
 import (
-	"context"
 	"time"
 
 	"github.com/google/uuid"
@@ -115,11 +114,11 @@ type UpdateMovieParams struct {
 }
 
 type Interface interface {
-	GetAll(ctx context.Context) ([]*Movie, error)
-	GetByID(ctx context.Context, id uuid.UUID) (*Movie, error)
-	Create(ctx context.Context, createMovieParams CreateMovieParams) error
-	Update(ctx context.Context, id uuid.UUID, updateMovieParams UpdateMovieParams) error
-	Delete(ctx context.Context, id uuid.UUID) error
+	GetAll() ([]Movie, error)
+	GetByID(id uuid.UUID) (Movie, error)
+	Create(createMovieParams CreateMovieParams) error
+	Update(id uuid.UUID, updateMovieParams UpdateMovieParams) error
+	Delete(id uuid.UUID) error
 }
 ```
 
@@ -151,63 +150,63 @@ func (e *RecordNotFoundError) Error() string {
 ## MemoryMoviesStore
 Add folder under `store` named `memory` and a file named `memory_movies_store.go`. Add a struct `MemoryMoviesStore` with a map field to store movies in memory. Also add a `RWMutex` field to avoid concurrent read/write access to movies field.
 
-We implement all methods defined for `MovieStore` interface to add/remove movies to map field of the `MemoryMoviesStore` struct. For reading we lock the collection for reading, read the result and release the lock using `defer`. For writing we acquire a write lock instead of a read lock.
+We will implement all methods defined for `store.Interface` to add/remove movies to map field of the `MemoryMoviesStore` struct. For reading we lock the collection for reading, read the result and release the lock using `defer`. For writing we acquire a write lock instead of a read lock.
+
 ```go
-package in_memory
+package memory
 
 import (
-	"context"
-	"errors"
-	"github.com/kashifsoofi/blog-code-samples/movies-api-with-go-chi-and-memory-store/store"
 	"sync"
 	"time"
+
+	"github.com/kashifsoofi/blog-code-samples/movies-api-with-go-chi-and-memory-store/store"
 
 	"github.com/google/uuid"
 )
 
 type MemoryMoviesStore struct {
-	movies map[uuid.UUID]*store.Movie
+	movies map[uuid.UUID]store.Movie
 	mu     sync.RWMutex
 }
 
 func NewMemoryMoviesStore() *MemoryMoviesStore {
 	return &MemoryMoviesStore{
-		movies: map[uuid.UUID]*store.Movie{},
+		movies: map[uuid.UUID]store.Movie{},
 	}
 }
 
-func (s *MemoryMoviesStore) GetAll(ctx context.Context) ([]*store.Movie, error) {
+func (s *MemoryMoviesStore) GetAll() ([]store.Movie, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
-	movies := make([]*store.Movie, 0)
+	var movies []store.Movie
 	for _, m := range s.movies {
 		movies = append(movies, m)
 	}
 	return movies, nil
 }
 
-func (s *MemoryMoviesStore) GetByID(ctx context.Context, id uuid.UUID) (*store.Movie, error) {
+func (s *MemoryMoviesStore) GetByID(id uuid.UUID) (store.Movie, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
 	m, ok := s.movies[id]
 	if !ok {
-		return nil, &store.RecordNotFoundError{}
+		return store.Movie{}, &store.RecordNotFoundError{}
 	}
 
 	return m, nil
 }
 
-func (s *MemoryMoviesStore) Create(ctx context.Context, createMovieParams store.CreateMovieParams) error {
+func (s *MemoryMoviesStore) Create(createMovieParams store.CreateMovieParams) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	if _, ok := s.movies[createMovieParams.ID]; ok {
-		return &store.DuplicateIdError{ID: createMovieParams.ID}
+		return &store.DuplicateKeyError{ID: createMovieParams.ID}
 	}
 
-	movie := &store.Movie{
+	movie := store.Movie{
 		ID:          createMovieParams.ID,
 		Title:       createMovieParams.Title,
 		Director:    createMovieParams.Director,
@@ -221,7 +220,7 @@ func (s *MemoryMoviesStore) Create(ctx context.Context, createMovieParams store.
 	return nil
 }
 
-func (s *MemoryMoviesStore) Update(ctx context.Context, id uuid.UUID, updateMovieParams store.UpdateMovieParams) error {
+func (s *MemoryMoviesStore) Update(id uuid.UUID, updateMovieParams store.UpdateMovieParams) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -240,7 +239,7 @@ func (s *MemoryMoviesStore) Update(ctx context.Context, id uuid.UUID, updateMovi
 	return nil
 }
 
-func (s *MemoryMoviesStore) Delete(ctx context.Context, id uuid.UUID) error {
+func (s *MemoryMoviesStore) Delete(id uuid.UUID) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -274,11 +273,11 @@ import (
 
 type Server struct {
 	cfg    config.HTTPServer
-	store  store.MoviesStore
+	store  store.Interface
 	router *chi.Mux
 }
 
-func NewServer(cfg config.HTTPServer, store store.MoviesStore) *Server {
+func NewServer(cfg config.HTTPServer, store store.Interface) *Server {
 	srv := &Server{
 		cfg:    cfg,
 		store:  store,
@@ -330,7 +329,7 @@ func handleShutdown(onShutdownSignal func()) <-chan struct{} {
 	return shutdown
 }
 ```
-## Custom Errors
+## Custom API Errors
 We would define any custom errors that are returned by our REST server in `errors.go` file under `api` folder. I have gone ahead and added all the errors I need to return from this service in the file. But practically we would start with the most common ones and then add any new when the need arise.
 ```go
 package api
@@ -377,25 +376,28 @@ I like the keep all the routes served by a service in a single place and single 
 ```go
 package api
 
-import "github.com/go-chi/chi/v5"
+import (
+	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/render"
+)
 
 func (s *Server) routes() {
 	s.router.Use(render.SetContentType(render.ContentTypeJSON))
 
-	s.router.Get("/health", s.handleGetHealth())
+	s.router.Get("/health", s.handleGetHealth)
 
 	s.router.Route("/api/movies", func(r chi.Router) {
-		r.Get("/", s.handleListMovies())
-		r.Post("/", s.handleCreateMovie())
+		r.Get("/", s.handleListMovies)
+		r.Post("/", s.handleCreateMovie)
 		r.Route("/{id}", func(r chi.Router) {
-			r.Get("/", s.handleGetMovie())
-			r.Put("/", s.handleUpdateMovie())
-			r.Delete("/", s.handleDeleteMovie())
+			r.Get("/", s.handleGetMovie)
+			r.Put("/", s.handleUpdateMovie)
+			r.Delete("/", s.handleDeleteMovie)
 		})
 	})
 }
 ```
-Please note all handlers hang off the `Server` struct, this helps to access required dependencies in each of the handler. If there are multiple resources in a service, it might make sense to add separate `structs` per resource containing only dependencies required by that resource.
+Please note all handlers hang off the `Server` struct, this helps to access required dependencies in each of the handlers. If there are multiple resources in a service, it might make sense to add separate `structs` per resource containing only dependencies required by that resource.
 
 ## Health Endpoint Handler
 I have added a separate file for `health` resource. It has a handler for a single endpoint, a struct that we would send as response and implementation of `Renderer` interface for our response struct.
@@ -416,11 +418,9 @@ func (hr healthResponse) Render(w http.ResponseWriter, r *http.Request) error {
 	return nil
 }
 
-func (s *Server) handleGetHealth() http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		health := healthResponse{OK: true}
-		render.Render(w, r, health)
-	}
+func (s *Server) handleGetHealth(w http.ResponseWriter, r *http.Request) {
+	health := healthResponse{OK: true}
+	render.Render(w, r, health)
 }
 ```
 
@@ -435,9 +435,11 @@ type movieResponse struct {
 	Director    string    `json:"director"`
 	ReleaseDate time.Time `json:"release_date"`
 	TicketPrice float64   `json:"ticket_price"`
+	CreatedAt   time.Time `json:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at"`
 }
 
-func NewMovieResponse(m *store.Movie) movieResponse {
+func NewMovieResponse(m store.Movie) movieResponse {
 	return movieResponse{
 		ID:          m.ID,
 		Title:       m.Title,
@@ -461,42 +463,41 @@ Then we proceed to get `movie` from `store` if a record is not found in store wi
 
 If everything works then we convert the `store.Movie` to `movieResponse` and render the result. Result would be returned to the caller as `json` response body.
 ```go
-func (s *Server) handleGetMovie() http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		idParam := chi.URLParam(r, "id")
-		id, err := uuid.Parse(idParam)
-		if err != nil {
-			render.Render(w, r, ErrBadRequest)
-			return
-		}
-
-		movie, err := s.store.GetByD(r.Context(), id)
-		if err != nil {
-			var rnfErr *store.RecordNotFoundError
-			if errors.As(err, &rnfErr) {
-				render.Render(w, r, ErrNotFound)
-			} else {
-				render.Render(w, r, ErrInternalServerError)
-			}
-			return
-		}
-
-		mr := NewMovieResponse(movie)
-		render.Render(w, r, mr)
+func (s *Server) handleGetMovie(w http.ResponseWriter, r *http.Request) {
+	idParam := chi.URLParam(r, "id")
+	id, err := uuid.Parse(idParam)
+	if err != nil {
+		render.Render(w, r, ErrBadRequest)
+		return
 	}
+
+	movie, err := s.store.GetByID(id)
+	if err != nil {
+		var rnfErr *store.RecordNotFoundError
+		if errors.As(err, &rnfErr) {
+			render.Render(w, r, ErrNotFound)
+		} else {
+			render.Render(w, r, ErrInternalServerError)
+		}
+		return
+	}
+
+	mr := NewMovieResponse(movie)
+	render.Render(w, r, mr)
 }
 ```
 
 ### Get All/List Movies
 For response we would use the same `movieResponse` struct we defined for `Get By ID`, we would just add a new method to create an array/slice of `Renderer`
 ```go
-func NewMovieListResponse(movies []*store.Movie) []render.Renderer {
-	list := []render.Renderer{}
-	for _, movie := range movies {
-		mr := NewMovieResponse(movie)
-		list = append(list, mr)
+func (s *Server) handleListMovies(w http.ResponseWriter, r *http.Request) {
+	movies, err := s.store.GetAll()
+	if err != nil {
+		render.Render(w, r, ErrInternalServerError)
+		return
 	}
-	return list
+
+	render.RenderList(w, r, NewMovieListResponse(movies))
 }
 ```
 
@@ -504,7 +505,7 @@ And the handler method is quite simple, we call `GetAll`, if error return `Inter
 ```go
 func (s *Server) handleListMovies() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		movies, err := s.store.GetAll(r.Context())
+		movies, err := s.store.GetAll()
 		if err != nil {
 			render.Render(w, r, ErrInternalServerError)
 			return
@@ -520,7 +521,7 @@ Same as get, we would start by adding a new struct to receive parameters require
 
 Please note we don't have `CreatedAt` and `UpdatedAt` in this struct.
 ```go
-type createMovieRequest struct {
+type CreateMovieRequest struct {
 	ID          string    `json:"id"`
 	Title       string    `json:"title"`
 	Director    string    `json:"director"`
@@ -535,35 +536,33 @@ func (mr *createMovieRequest) Bind(r *http.Request) error {
 
 In handler we bind request body to our struct, if `Bind` is successful then convert it to `CreateMovieParams` struct expected by `store.Create` method and call `Create` method to add movie to data store. If there is a duplicate key error we return `409 Conflict` for unknown errors we return `500 InternalServerError` and if all is successful we are returning `200 OK`.
 ```go
-func (s *Server) handleCreateMovie() http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		data := &createMovieRequest{}
-		if err := render.Bind(r, data); err != nil {
-			render.Render(w, r, ErrBadRequest)
-			return
-		}
-
-		createMovieParams := store.NewCreateMovieParams(
-			uuid.MustParse(data.ID),
-			data.Title,
-			data.Director,
-			data.ReleaseDate,
-			data.TicketPrice,
-		)
-		err := s.store.Create(r.Context(), createMovieParams)
-		if err != nil {
-			var dupKeyErr *store.DuplicateKeyError
-			if errors.As(err, &dupKeyErr) {
-				render.Render(w, r, ErrConflict(err))
-			} else {
-				render.Render(w, r, ErrInternalServerError)
-			}
-			return
-		}
-
-		w.WriteHeader(200)
-		w.Write(nil)
+func (s *Server) handleCreateMovie(w http.ResponseWriter, r *http.Request) {
+	data := &CreateMovieRequest{}
+	if err := render.Bind(r, data); err != nil {
+		render.Render(w, r, ErrBadRequest)
+		return
 	}
+
+	createMovieParams := store.CreateMovieParams{
+		ID:          uuid.MustParse(data.ID),
+		Title:       data.Title,
+		Director:    data.Director,
+		ReleaseDate: data.ReleaseDate,
+		TicketPrice: data.TicketPrice,
+	}
+	err := s.store.Create(createMovieParams)
+	if err != nil {
+		var dupKeyErr *store.DuplicateKeyError
+		if errors.As(err, &dupKeyErr) {
+			render.Render(w, r, ErrConflict(err))
+		} else {
+			render.Render(w, r, ErrInternalServerError)
+		}
+		return
+	}
+
+	w.WriteHeader(200)
+	w.Write(nil)
 }
 ```
 
@@ -584,84 +583,81 @@ func (mr *updateMovieRequest) Bind(r *http.Request) error {
 
 In hander we read the `id` from path, then we bind the struct from request body. If no errors then we convert the request to `store.UpdateMovieParams` and call `Update` method of store to update movie. We return `200 OK` if upate is successful.
 ```go
-func (s *Server) handleUpdateMovie() http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		idParam := chi.URLParam(r, "id")
-		id, err := uuid.Parse(idParam)
-		if err != nil {
-			render.Render(w, r, ErrBadRequest)
-			return
-		}
-
-		data := &updateMovieRequest{}
-		if err := render.Bind(r, data); err != nil {
-			render.Render(w, r, ErrBadRequest)
-			return
-		}
-
-		updateMovieParams := store.NewUpdateMovieParams(
-			data.Title,
-			data.Director,
-			data.ReleaseDate,
-			data.TicketPrice,
-		)
-		err = s.store.Update(r.Context(), id, updateMovieParams)
-		if err != nil {
-			var rnfErr *store.RecordNotFoundError
-			if errors.As(err, &rnfErr) {
-				render.Render(w, r, ErrNotFound)
-			} else {
-				render.Render(w, r, ErrInternalServerError)
-			}
-			return
-		}
-
-		w.WriteHeader(200)
-		w.Write(nil)
+func (s *Server) handleUpdateMovie(w http.ResponseWriter, r *http.Request) {
+	idParam := chi.URLParam(r, "id")
+	id, err := uuid.Parse(idParam)
+	if err != nil {
+		render.Render(w, r, ErrBadRequest)
+		return
 	}
+
+	data := &updateMovieRequest{}
+	if err := render.Bind(r, data); err != nil {
+		render.Render(w, r, ErrBadRequest)
+		return
+	}
+
+	updateMovieParams := store.UpdateMovieParams{
+		Title:       data.Title,
+		Director:    data.Director,
+		ReleaseDate: data.ReleaseDate,
+		TicketPrice: data.TicketPrice,
+	}
+	err = s.store.Update(id, updateMovieParams)
+	if err != nil {
+		var rnfErr *store.RecordNotFoundError
+		if errors.As(err, &rnfErr) {
+			render.Render(w, r, ErrNotFound)
+		} else {
+			render.Render(w, r, ErrInternalServerError)
+		}
+		return
+	}
+
+	w.WriteHeader(200)
+	w.Write(nil)
 }
 ```
 
 ### Delete Movie
 This probably is the simplest handler as it does not need any `Renderer` or `Binder`, we simply get `id` from the path, and call `Delete` method of store to delete the resource. If delete is successful we return `200 OK`.
 ```go
-func (s *Server) handleDeleteMovie() http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		idParam := chi.URLParam(r, "id")
-		id, err := uuid.Parse(idParam)
-		if err != nil {
-			render.Render(w, r, ErrBadRequest)
-			return
-		}
-
-		err = s.store.Delete(r.Context(), id)
-		if err != nil {
-			var rnfErr *store.RecordNotFoundError
-			if errors.As(err, &rnfErr) {
-				render.Render(w, r, ErrNotFound)
-			} else {
-				render.Render(w, r, ErrInternalServerError)
-			}
-			return
-		}
-
-		w.WriteHeader(200)
-		w.Write(nil)
+func (s *Server) handleDeleteMovie(w http.ResponseWriter, r *http.Request) {
+	idParam := chi.URLParam(r, "id")
+	id, err := uuid.Parse(idParam)
+	if err != nil {
+		render.Render(w, r, ErrBadRequest)
+		return
 	}
+
+	err = s.store.Delete(id)
+	if err != nil {
+		var rnfErr *store.RecordNotFoundError
+		if errors.As(err, &rnfErr) {
+			render.Render(w, r, ErrNotFound)
+		} else {
+			render.Render(w, r, ErrInternalServerError)
+		}
+		return
+	}
+
+	w.WriteHeader(200)
+	w.Write(nil)
 }
 ```
 
 ## Start Server
-Now everything is setup, its time to update `main` method. Start by laoding the configuration, then create an instance of the `InMemoryMoviesStore`, here we can also instantiate any other dependencies our server is dependent on. Next step is to create an instance of `api.Server` struct and call the `Start` method to start the server. Server would start listening on the configured port and you can invoke endpoints using `curl` or `Postman`.
+Now everything is setup, its time to update `main` method. Start by laoding the configuration, then create an instance of the `MemoryMoviesStore`, here we can also instantiate any other dependencies our server is dependent on. Next step is to create an instance of `api.Server` struct and call the `Start` method to start the server. Server would start listening on the configured port and you can invoke endpoints using `curl` or `Postman`.
 ```go
 package main
 
 import (
 	"context"
 	"log"
+
 	"github.com/kashifsoofi/blog-code-samples/movies-api-with-go-chi-and-memory-store/api"
 	"github.com/kashifsoofi/blog-code-samples/movies-api-with-go-chi-and-memory-store/config"
-	"github.com/kashifsoofi/blog-code-samples/movies-api-with-go-chi-and-memory-store/store/in_memory"
+	"github.com/kashifsoofi/blog-code-samples/movies-api-with-go-chi-and-memory-store/store/memory"
 )
 
 func main() {
@@ -671,7 +667,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	store := in_memory.NewInMemoryMoviesStore()
+	store := memory.NewMemoryMoviesStore()
 	server := api.NewServer(cfg.HTTPServer, store)
 	server.Start(ctx)
 }
@@ -817,4 +813,5 @@ In no particular order
 * [What is a REST API?](https://www.ibm.com/topics/rest-apis)
 * [envconfig](https://github.com/kelseyhightower/envconfig)
 * [chi](https://github.com/go-chi/chi)
+* 
 * And many more

@@ -1,7 +1,6 @@
 package memory
 
 import (
-	"context"
 	"sync"
 	"time"
 
@@ -21,13 +20,9 @@ func NewMemoryMoviesStore() *MemoryMoviesStore {
 	}
 }
 
-func (s *MemoryMoviesStore) GetAll(ctx context.Context) ([]store.Movie, error) {
+func (s *MemoryMoviesStore) GetAll() ([]store.Movie, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-
-	if ctx.Err() != nil {
-		return nil, ctx.Err()
-	}
 
 	var movies []store.Movie
 	for _, m := range s.movies {
@@ -36,7 +31,7 @@ func (s *MemoryMoviesStore) GetAll(ctx context.Context) ([]store.Movie, error) {
 	return movies, nil
 }
 
-func (s *MemoryMoviesStore) GetByID(ctx context.Context, id uuid.UUID) (store.Movie, error) {
+func (s *MemoryMoviesStore) GetByID(id uuid.UUID) (store.Movie, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
@@ -48,7 +43,7 @@ func (s *MemoryMoviesStore) GetByID(ctx context.Context, id uuid.UUID) (store.Mo
 	return m, nil
 }
 
-func (s *MemoryMoviesStore) Create(ctx context.Context, createMovieParams store.CreateMovieParams) error {
+func (s *MemoryMoviesStore) Create(createMovieParams store.CreateMovieParams) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -70,7 +65,7 @@ func (s *MemoryMoviesStore) Create(ctx context.Context, createMovieParams store.
 	return nil
 }
 
-func (s *MemoryMoviesStore) Update(ctx context.Context, id uuid.UUID, updateMovieParams store.UpdateMovieParams) error {
+func (s *MemoryMoviesStore) Update(id uuid.UUID, updateMovieParams store.UpdateMovieParams) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -89,7 +84,7 @@ func (s *MemoryMoviesStore) Update(ctx context.Context, id uuid.UUID, updateMovi
 	return nil
 }
 
-func (s *MemoryMoviesStore) Delete(ctx context.Context, id uuid.UUID) error {
+func (s *MemoryMoviesStore) Delete(id uuid.UUID) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
