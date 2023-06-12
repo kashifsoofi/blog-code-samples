@@ -32,7 +32,7 @@ func (s *MemoryMoviesStore) GetAll(ctx context.Context) ([]*store.Movie, error) 
 	return movies, nil
 }
 
-func (s *MemoryMoviesStore) GetById(ctx context.Context, id uuid.UUID) (*store.Movie, error) {
+func (s *MemoryMoviesStore) GetByID(ctx context.Context, id uuid.UUID) (*store.Movie, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
@@ -48,12 +48,12 @@ func (s *MemoryMoviesStore) Create(ctx context.Context, createMovieParams store.
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	if _, ok := s.movies[createMovieParams.Id]; ok {
-		return &store.DuplicateIdError{Id: createMovieParams.Id}
+	if _, ok := s.movies[createMovieParams.ID]; ok {
+		return &store.DuplicateKeyError{ID: createMovieParams.ID}
 	}
 
 	movie := &store.Movie{
-		Id:          createMovieParams.Id,
+		ID:          createMovieParams.ID,
 		Title:       createMovieParams.Title,
 		Director:    createMovieParams.Director,
 		ReleaseDate: createMovieParams.ReleaseDate,
@@ -62,7 +62,7 @@ func (s *MemoryMoviesStore) Create(ctx context.Context, createMovieParams store.
 		UpdatedAt:   time.Now().UTC(),
 	}
 
-	s.movies[movie.Id] = movie
+	s.movies[movie.ID] = movie
 	return nil
 }
 

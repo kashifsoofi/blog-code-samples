@@ -13,7 +13,7 @@ import (
 )
 
 type movieResponse struct {
-	Id          uuid.UUID `json:"id"`
+	ID          uuid.UUID `json:"id"`
 	Title       string    `json:"title"`
 	Director    string    `json:"director"`
 	ReleaseDate time.Time `json:"release_date"`
@@ -24,7 +24,7 @@ type movieResponse struct {
 
 func NewMovieResponse(m *store.Movie) movieResponse {
 	return movieResponse{
-		Id:          m.Id,
+		ID:          m.ID,
 		Title:       m.Title,
 		Director:    m.Director,
 		ReleaseDate: m.ReleaseDate,
@@ -68,7 +68,7 @@ func (s *Server) handleGetMovie() http.HandlerFunc {
 			return
 		}
 
-		movie, err := s.store.GetById(r.Context(), id)
+		movie, err := s.store.GetByID(r.Context(), id)
 		if err != nil {
 			var rnfErr *store.RecordNotFoundError
 			if errors.As(err, &rnfErr) {
@@ -85,7 +85,7 @@ func (s *Server) handleGetMovie() http.HandlerFunc {
 }
 
 type CreateMovieRequest struct {
-	Id          string    `json:"id"`
+	ID          string    `json:"id"`
 	Title       string    `json:"title"`
 	Director    string    `json:"director"`
 	ReleaseDate time.Time `json:"release_date"`
@@ -104,17 +104,17 @@ func (s *Server) handleCreateMovie() http.HandlerFunc {
 			return
 		}
 
-		createMovieParams := store.NewCreateMovieParams(
-			uuid.MustParse(data.Id),
-			data.Title,
-			data.Director,
-			data.ReleaseDate,
-			data.TicketPrice,
-		)
+		createMovieParams := store.CreateMovieParams{
+			ID:          uuid.MustParse(data.ID),
+			Title:       data.Title,
+			Director:    data.Director,
+			ReleaseDate: data.ReleaseDate,
+			TicketPrice: data.TicketPrice,
+		}
 		err := s.store.Create(r.Context(), createMovieParams)
 		if err != nil {
-			var dupIdErr *store.DuplicateIdError
-			if errors.As(err, &dupIdErr) {
+			var dupKeyErr *store.DuplicateKeyError
+			if errors.As(err, &dupKeyErr) {
 				render.Render(w, r, ErrConflict(err))
 			} else {
 				render.Render(w, r, ErrInternalServerError)
@@ -153,12 +153,12 @@ func (s *Server) handleUpdateMovie() http.HandlerFunc {
 			return
 		}
 
-		updateMovieParams := store.NewUpdateMovieParams(
-			data.Title,
-			data.Director,
-			data.ReleaseDate,
-			data.TicketPrice,
-		)
+		updateMovieParams := store.UpdateMovieParams{
+			Title:       data.Title,
+			Director:    data.Director,
+			ReleaseDate: data.ReleaseDate,
+			TicketPrice: data.TicketPrice,
+		}
 		err = s.store.Update(r.Context(), id, updateMovieParams)
 		if err != nil {
 			var rnfErr *store.RecordNotFoundError

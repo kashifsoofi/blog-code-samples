@@ -6,12 +6,12 @@ import (
 	"github.com/google/uuid"
 )
 
-type DuplicateIdError struct {
-	Id uuid.UUID
+type DuplicateKeyError struct {
+	ID uuid.UUID
 }
 
-func (e *DuplicateIdError) Error() string {
-	return fmt.Sprintf("duplicate movie id: %v", e.Id)
+func (e *DuplicateKeyError) Error() string {
+	return fmt.Sprintf("duplicate movie id: %v", e.ID)
 }
 
 type RecordNotFoundError struct{}
