@@ -1,4 +1,4 @@
-module github.com/kashifsoofi/blog-code-samples/restapi-with-go-chi-and-memory-store
+module github.com/kashifsoofi/blog-code-samples/movies-api-with-go-chi-and-memory-store
 
 go 1.20
 

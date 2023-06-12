@@ -17,10 +17,10 @@ We will be managing a `Movie` resource with the current project. It is not an ac
 | TicketPrice | float64 |
 
 # Project Setup
-* Create a folder for project, I named it as `restapi-with-go-chi-and-inmemory-store` but it usually would be at the root of the GitHub repo, or a subfolder in a mono reop.
+* Create a folder for project, I named it as `movies-api-with-go-chi-and-inmemory-store` but it usually would be at the root of the GitHub repo, or a subfolder in a mono reop.
 * Execute following command to initialise `go.mod` on terminal
 ```shell
-go mod init movies-api
+go mod init github.com/kashifsoofi/blog-code-samples/movies-api-with-go-chi-and-memory-store
 ```
 * Add a new file `main.go` with following content to start with
 ```go
@@ -158,7 +158,7 @@ package in_memory
 import (
 	"context"
 	"errors"
-	"movies-api/store"
+	"github.com/kashifsoofi/blog-code-samples/movies-api-with-go-chi-and-memory-store/store"
 	"sync"
 	"time"
 
@@ -266,8 +266,8 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/kashifsoofi/blog-code-samples/restapi-with-go-chi-and-memory-store/config"
-	"github.com/kashifsoofi/blog-code-samples/restapi-with-go-chi-and-memory-store/store"
+	"github.com/kashifsoofi/blog-code-samples/movies-api-with-go-chi-and-memory-store/config"
+	"github.com/kashifsoofi/blog-code-samples/movies-api-with-go-chi-and-memory-store/store"
 
 	"github.com/go-chi/chi/v5"
 )
@@ -659,9 +659,9 @@ package main
 import (
 	"context"
 	"log"
-	"movies-api/api"
-	"movies-api/config"
-	"movies-api/store/in_memory"
+	"github.com/kashifsoofi/blog-code-samples/movies-api-with-go-chi-and-memory-store/api"
+	"github.com/kashifsoofi/blog-code-samples/movies-api-with-go-chi-and-memory-store/config"
+	"github.com/kashifsoofi/blog-code-samples/movies-api-with-go-chi-and-memory-store/store/in_memory"
 )
 
 func main() {

@@ -5,7 +5,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/kashifsoofi/blog-code-samples/restapi-with-go-chi-and-memory-store/store"
+	"github.com/kashifsoofi/blog-code-samples/movies-api-with-go-chi-and-memory-store/store"
 
 	"github.com/google/uuid"
 )
