@@ -34,12 +34,11 @@ func main() {
 ## Package Structure
 I like to add sub-packages to group related functionality together. To that extent I will be adding 3 root-level folders and 1 sub-folder in the `store` folder. Folder structure will be as follows (not showing files).
 
-.  
-└── movies-api-with-go-chi-and-memory-store/  
-    ├── api - this will contain rest routes, handlers etc.  
-    ├── config - this will contain anything related to service configuration  
-    └── store/ - this will contain store interface  
-        └── memory - in memory store implementation  
+- movies-api-with-go-chi-and-memory-store/
+  - api - this will contain rest routes, handlers etc.
+  - config - this will contain anything related to service configuration
+  - store/ - this will contain store interface
+    - memory - in memory store implementation
 
 I have only 2 resources, `health` and `movies`, however if you are serving more resources in a single rest service, feel free to add a folder per resource under `api`.
 
