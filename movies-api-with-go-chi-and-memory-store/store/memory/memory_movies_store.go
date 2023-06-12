@@ -11,34 +11,38 @@ import (
 )
 
 type MemoryMoviesStore struct {
-	movies map[uuid.UUID]*store.Movie
+	movies map[uuid.UUID]store.Movie
 	mu     sync.RWMutex
 }
 
 func NewMemoryMoviesStore() *MemoryMoviesStore {
 	return &MemoryMoviesStore{
-		movies: map[uuid.UUID]*store.Movie{},
+		movies: map[uuid.UUID]store.Movie{},
 	}
 }
 
-func (s *MemoryMoviesStore) GetAll(ctx context.Context) ([]*store.Movie, error) {
+func (s *MemoryMoviesStore) GetAll(ctx context.Context) ([]store.Movie, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
-	movies := make([]*store.Movie, 0)
+	if ctx.Err() != nil {
+		return nil, ctx.Err()
+	}
+
+	var movies []store.Movie
 	for _, m := range s.movies {
 		movies = append(movies, m)
 	}
 	return movies, nil
 }
 
-func (s *MemoryMoviesStore) GetByID(ctx context.Context, id uuid.UUID) (*store.Movie, error) {
+func (s *MemoryMoviesStore) GetByID(ctx context.Context, id uuid.UUID) (store.Movie, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
 	m, ok := s.movies[id]
 	if !ok {
-		return nil, &store.RecordNotFoundError{}
+		return store.Movie{}, &store.RecordNotFoundError{}
 	}
 
 	return m, nil
@@ -52,7 +56,7 @@ func (s *MemoryMoviesStore) Create(ctx context.Context, createMovieParams store.
 		return &store.DuplicateKeyError{ID: createMovieParams.ID}
 	}
 
-	movie := &store.Movie{
+	movie := store.Movie{
 		ID:          createMovieParams.ID,
 		Title:       createMovieParams.Title,
 		Director:    createMovieParams.Director,

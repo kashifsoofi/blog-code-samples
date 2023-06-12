@@ -22,7 +22,7 @@ type movieResponse struct {
 	UpdatedAt   time.Time `json:"updated_at"`
 }
 
-func NewMovieResponse(m *store.Movie) movieResponse {
+func NewMovieResponse(m store.Movie) movieResponse {
 	return movieResponse{
 		ID:          m.ID,
 		Title:       m.Title,
@@ -38,8 +38,8 @@ func (hr movieResponse) Render(w http.ResponseWriter, r *http.Request) error {
 	return nil
 }
 
-func NewMovieListResponse(movies []*store.Movie) []render.Renderer {
-	list := []render.Renderer{}
+func NewMovieListResponse(movies []store.Movie) []render.Renderer {
+	var list []render.Renderer
 	for _, movie := range movies {
 		mr := NewMovieResponse(movie)
 		list = append(list, mr)

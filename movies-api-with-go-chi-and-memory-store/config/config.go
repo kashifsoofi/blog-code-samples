@@ -19,12 +19,12 @@ type HTTPServer struct {
 	WriteTimeout time.Duration `envconfig:"HTTP_SERVER_WRITE_TIMEOUT" default:"2s"`
 }
 
-func Load() (*Configuration, error) {
-	cfg := Configuration{}
+func Load() (Configuration, error) {
+	var cfg Configuration
 	err := envconfig.Process(envPrefix, &cfg)
 	if err != nil {
-		return nil, err
+		return cfg, err
 	}
 
-	return &cfg, nil
+	return cfg, nil
 }
