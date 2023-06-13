@@ -1,9 +1,8 @@
-package mysql
+package store
 
 import (
 	"context"
 	"database/sql"
-	"movies-api/store"
 	"strings"
 	"time"
 
@@ -42,14 +41,14 @@ func (s *MySqlMoviesStore) close() error {
 	return s.dbx.Close()
 }
 
-func (s *MySqlMoviesStore) GetAll(ctx context.Context) ([]*store.Movie, error) {
+func (s *MySqlMoviesStore) GetAll(ctx context.Context) ([]Movie, error) {
 	err := s.connect(ctx)
 	if err != nil {
 		return nil, err
 	}
 	defer s.close()
 
-	var movies []*store.Movie
+	var movies []Movie
 	if err := s.dbx.SelectContext(
 		ctx,
 		&movies,
@@ -62,14 +61,14 @@ func (s *MySqlMoviesStore) GetAll(ctx context.Context) ([]*store.Movie, error) {
 	return movies, nil
 }
 
-func (s *MySqlMoviesStore) GetById(ctx context.Context, id uuid.UUID) (*store.Movie, error) {
+func (s *MySqlMoviesStore) GetByID(ctx context.Context, id uuid.UUID) (Movie, error) {
 	err := s.connect(ctx)
 	if err != nil {
-		return nil, err
+		return Movie{}, err
 	}
 	defer s.close()
 
-	var movie store.Movie
+	var movie Movie
 	if err := s.dbx.GetContext(
 		ctx,
 		&movie,
@@ -79,24 +78,24 @@ func (s *MySqlMoviesStore) GetById(ctx context.Context, id uuid.UUID) (*store.Mo
 		WHERE Id = ?`,
 		id); err != nil {
 		if err != sql.ErrNoRows {
-			return nil, err
+			return Movie{}, err
 		}
 
-		return nil, &store.RecordNotFoundError{}
+		return Movie{}, &RecordNotFoundError{}
 	}
 
-	return &movie, nil
+	return movie, nil
 }
 
-func (s *MySqlMoviesStore) Create(ctx context.Context, createMovieParams store.CreateMovieParams) error {
+func (s *MySqlMoviesStore) Create(ctx context.Context, createMovieParams CreateMovieParams) error {
 	err := s.connect(ctx)
 	if err != nil {
 		return err
 	}
 	defer s.close()
 
-	movie := store.Movie{
-		Id:          createMovieParams.Id,
+	movie := Movie{
+		ID:          createMovieParams.ID,
 		Title:       createMovieParams.Title,
 		Director:    createMovieParams.Director,
 		ReleaseDate: createMovieParams.ReleaseDate,
@@ -113,7 +112,7 @@ func (s *MySqlMoviesStore) Create(ctx context.Context, createMovieParams store.C
 			(:Id, :Title, :Director, :ReleaseDate, :TicketPrice, :CreatedAt, :UpdatedAt)`,
 		movie); err != nil {
 		if strings.Contains(err.Error(), "Error 1062") {
-			return &store.DuplicateIdError{Id: createMovieParams.Id}
+			return &DuplicateKeyError{ID: createMovieParams.ID}
 		}
 		return err
 	}
@@ -121,15 +120,15 @@ func (s *MySqlMoviesStore) Create(ctx context.Context, createMovieParams store.C
 	return nil
 }
 
-func (s *MySqlMoviesStore) Update(ctx context.Context, id uuid.UUID, updateMovieParams store.UpdateMovieParams) error {
+func (s *MySqlMoviesStore) Update(ctx context.Context, id uuid.UUID, updateMovieParams UpdateMovieParams) error {
 	err := s.connect(ctx)
 	if err != nil {
 		return err
 	}
 	defer s.close()
 
-	movie := store.Movie{
-		Id:          id,
+	movie := Movie{
+		ID:          id,
 		Title:       updateMovieParams.Title,
 		Director:    updateMovieParams.Director,
 		ReleaseDate: updateMovieParams.ReleaseDate,

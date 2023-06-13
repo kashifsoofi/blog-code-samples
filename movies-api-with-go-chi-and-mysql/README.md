@@ -1,5 +1,8 @@
 # REST API with Go, Chi, MySQL and sqlx
-This is a continuation of an earlier post [REST API with Go, Chi and InMemory Store](https://kashifsoofi.github.io/go/rest/restapi-with-go-chi-and-inmemory-store/). In this tutorial I will extend the service to store data in a [MySQL](https://www.mysql.com/) database. I will use [Docker](https://www.docker.com/) to run MySQL and use the same to run database migrations.
+This is a continuation of an earlier post [REST API with Go, Chi and InMemory Store](https://kashifsoofi.github.io/go/rest/restapi-with-go-chi-and-inmemory-store/). In this tutorial I will extend the service to store data in a [MySQL](https://www.mysql.com/) database. I will use [Docker](https://www.docker.com/) to run MySQL and run database migrations.
+
+## Project Setup
+I will start by copying the content of `https://github.com/kashifsoofi/blog-code-samples/tree/main/movies-api-with-go-chi-and-memory-store`, placing it in a new folder `movies-api-with-go-chi-and-mysql` and updating module name in `go.mod` to match the new folder and updating in source files where its used. This will usually be the root of your `git` repo and will not be as elaborate as this.
 
 ## Setup Database Server
 I will be using a docker-compose to run MySQL in a docker container. This would allow us the add more services that our rest api is depenedent on e.g. redis server for distributed caching.
@@ -28,7 +31,7 @@ volumes:
   moviesdbdata:
 ```
 
-Open a terminal at the root of the solution where docker-compose file is location and execute following command to start database server.
+Open a terminal at the root of the solution where docker-compose file is located and execute following command to start database server.
 ```shell
 docker-compose -f docker-compose.dev-env.yml up -d
 ```
@@ -101,15 +104,18 @@ docker-compose -f docker-compose.dev-env.yml up -d
 ## MySQL Movies Store
 I will be using [sqlx](https://github.com/jmoiron/sqlx) to execute queries and map columns to struct fields and vice versa, `sqlx` is a library which provides a set of extensions on go's standard `database/sql` library.
 
-Add a new folder named `mysql` under `store` and a new file named `mysql_movies_store.go`. Add a new struct `MySqlMoviesStore` containing `databaseUrl` and a pointer to `sqlx.DB`, also add helper methods to `connect` to database and `close` connection as well. Also note that I have added a `noOpMapper` method and set as MapperFunc of `sqlx.DB`, reason for this is to use the same casing as the struct field name. Default behaviour for `sqlx` is to map field names to lower case column names.
+Add a new file named `mysql_movies_store.go`. Add a new struct `MySqlMoviesStore` containing `databaseUrl` and a pointer to `sqlx.DB`, also add helper methods to `connect` to database and `close` connection as well. Also note that I have added a `noOpMapper` method and set as MapperFunc of `sqlx.DB`, reason for this is to use the same casing as the struct field name. Default behaviour for `sqlx` is to map field names to lower case column names.
 ```go
-package mysql
+package store
 
 import (
 	"context"
-	"movies-api/store"
+	"database/sql"
+	"strings"
+	"time"
 
 	_ "github.com/go-sql-driver/mysql"
+	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 )
 
@@ -144,19 +150,32 @@ func (s *MySqlMoviesStore) close() error {
 }
 ```
 
+## Context
+We did not make use of the `Context` in the earlier sample `movies-api-with-go-chi-and-memory-store`, now that we are connecting to an external storage and package we are going to use to run queries support methods accepting `Context` we will update our `store.Interface` to accept `Context` and use that when running queries. `store.Interface` will be updated as follows
+```go
+type Interface interface {
+	GetAll(ctx context.Context) ([]Movie, error)
+	GetByID(ctx context.Context, id uuid.UUID) (Movie, error)
+	Create(ctx context.Context, createMovieParams CreateMovieParams) error
+	Update(ctx context.Context, id uuid.UUID, updateMovieParams UpdateMovieParams) error
+	Delete(ctx context.Context, id uuid.UUID) error
+}
+```
+We will also need to update `MemoryMoviesStore` methods to accept `Context` to satisfy `store.Interface` and update methods in `movies_handler` to pass request context using `r.Context()` when calling `store` methods.
+
 ### Create
-We connect to database using `connect` helper method, create a new instance of `Movie` and execute insert query with `NamedExecContext`. We are handling an `error` and return `DuplicateIdError` if returned error contains text `Error 1062`. If insert is successful then we return `nil`.
+We connect to database using `connect` helper method, create a new instance of `Movie` and execute insert query with `NamedExecContext`. We are handling an `error` and return `DuplicateKeyError` if returned error contains text `Error 1062`. If insert is successful then we return `nil`.
 Create function looks like
 ```go
-func (s *MySqlMoviesStore) Create(ctx context.Context, createMovieParams store.CreateMovieParams) error {
+func (s *MySqlMoviesStore) Create(ctx context.Context, createMovieParams CreateMovieParams) error {
 	err := s.connect(ctx)
 	if err != nil {
 		return err
 	}
 	defer s.close()
 
-	movie := store.Movie{
-		Id:          createMovieParams.Id,
+	movie := Movie{
+		ID:          createMovieParams.ID,
 		Title:       createMovieParams.Title,
 		Director:    createMovieParams.Director,
 		ReleaseDate: createMovieParams.ReleaseDate,
@@ -173,7 +192,7 @@ func (s *MySqlMoviesStore) Create(ctx context.Context, createMovieParams store.C
 			(:Id, :Title, :Director, :ReleaseDate, :TicketPrice, :CreatedAt, :UpdatedAt)`,
 		movie); err != nil {
 		if strings.Contains(err.Error(), "Error 1062") {
-			return &store.DuplicateIdError{Id: createMovieParams.Id}
+			return &DuplicateKeyError{ID: createMovieParams.ID}
 		}
 		return err
 	}
@@ -185,14 +204,14 @@ func (s *MySqlMoviesStore) Create(ctx context.Context, createMovieParams store.C
 ### GetAll
 We connect to database using `connect` helper method, then use `SelectContext` method of `sqlx` to execute query, `sqlx` would map the columns to fields. If query is successful then we return the slice of loaded movies.
 ```go
-func (s *MySqlMoviesStore) GetAll(ctx context.Context) ([]*store.Movie, error) {
+func (s *MySqlMoviesStore) GetAll(ctx context.Context) ([]Movie, error) {
 	err := s.connect(ctx)
 	if err != nil {
 		return nil, err
 	}
 	defer s.close()
 
-	var movies []*store.Movie
+	var movies []Movie
 	if err := s.dbx.SelectContext(
 		ctx,
 		&movies,
@@ -207,17 +226,17 @@ func (s *MySqlMoviesStore) GetAll(ctx context.Context) ([]*store.Movie, error) {
 ```
 If there is an error in parsing `DATETIME` column, remember to add `parseTime=true` parameter to your connection string.
 
-### GetById
+### GetByID
 We connect to database using `connect` helper method, then use `GetContext` method to execute select query, `sqlx` would map the columns to fields. If the driver returns `sql.ErrNoRows` then we return `store.RecordNotFoundError`. If successful loaded `movie` record is returned.
 ```go
-func (s *MySqlMoviesStore) GetById(ctx context.Context, id uuid.UUID) (*store.Movie, error) {
+func (s *MySqlMoviesStore) GetByID(ctx context.Context, id uuid.UUID) (Movie, error) {
 	err := s.connect(ctx)
 	if err != nil {
-		return nil, err
+		return Movie{}, err
 	}
 	defer s.close()
 
-	var movie store.Movie
+	var movie Movie
 	if err := s.dbx.GetContext(
 		ctx,
 		&movie,
@@ -227,28 +246,28 @@ func (s *MySqlMoviesStore) GetById(ctx context.Context, id uuid.UUID) (*store.Mo
 		WHERE Id = ?`,
 		id); err != nil {
 		if err != sql.ErrNoRows {
-			return nil, err
+			return Movie{}, err
 		}
 
-		return nil, &store.RecordNotFoundError{}
+		return Movie{}, &RecordNotFoundError{}
 	}
 
-	return &movie, nil
+	return movie, nil
 }
 ```
 
 ### Update
 We connect to database using `connect` helper method, then use `NamedExecContext` method to execute query to update an existing record.
 ```go
-func (s *MySqlMoviesStore) Update(ctx context.Context, id uuid.UUID, updateMovieParams store.UpdateMovieParams) error {
+func (s *MySqlMoviesStore) Update(ctx context.Context, id uuid.UUID, updateMovieParams UpdateMovieParams) error {
 	err := s.connect(ctx)
 	if err != nil {
 		return err
 	}
 	defer s.close()
 
-	movie := store.Movie{
-		Id:          id,
+	movie := Movie{
+		ID:          id,
 		Title:       updateMovieParams.Title,
 		Director:    updateMovieParams.Director,
 		ReleaseDate: updateMovieParams.ReleaseDate,
@@ -306,7 +325,7 @@ type Database struct {
 ```
 
 ## Dependency Injection
-Update `main.go` as follows to create a new instance of `MySqlMoviesStore`, I have opted to create instance of `MySqlMoviesStore` instead of `InMemoryMoviesStore`, solution can be enhanced to create either one of the dependency based on a configuration.
+Update `main.go` as follows to create a new instance of `MySqlMoviesStore`, I have opted to create instance of `MySqlMoviesStore` instead of `MemoryMoviesStore`, solution can be enhanced to create either one of the dependency based on a configuration.
 ```go
 // store := in_memory.NewInMemoryMoviesStore()
 store := mysql.NewMySqlMoviesStore(cfg.DatabaseURL)
@@ -321,7 +340,7 @@ DATABASE_URL=root:Password123@tcp(localhost:3306)/moviesdb?parseTime=true go run
 ```
 
 ## Source
-Source code for the demo application is hosted on GitHub in [blog-code-samples](https://github.com/kashifsoofi/blog-code-samples/tree/main/restapi-with-go-chi-and-mysql) repository.
+Source code for the demo application is hosted on GitHub in [blog-code-samples](https://github.com/kashifsoofi/blog-code-samples/tree/main/movies-api-with-go-chi-and-mysql) repository.
 
 
 ## References

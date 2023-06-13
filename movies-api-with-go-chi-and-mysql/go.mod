@@ -1,4 +1,4 @@
-module movies-api
+module github.com/kashifsoofi/blog-code-samples/movies-api-with-go-chi-and-mysql
 
 go 1.20
 
