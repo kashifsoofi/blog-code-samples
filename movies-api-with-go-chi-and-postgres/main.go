@@ -3,9 +3,10 @@ package main
 import (
 	"context"
 	"log"
-	"movies-api/api"
-	"movies-api/config"
-	"movies-api/store/postgres"
+
+	"github.com/kashifsoofi/blog-code-samples/movies-api-with-go-chi-and-postgres/api"
+	"github.com/kashifsoofi/blog-code-samples/movies-api-with-go-chi-and-postgres/config"
+	"github.com/kashifsoofi/blog-code-samples/movies-api-with-go-chi-and-postgres/store"
 )
 
 func main() {
@@ -15,8 +16,8 @@ func main() {
 		log.Fatal(err)
 	}
 
-	// store := in_memory.NewInMemoryMoviesStore()
-	store := postgres.NewPostgresMoviesStore(cfg.DatabaseURL)
+	// store := store.NewMemoryMoviesStore()
+	store := store.NewPostgresMoviesStore(cfg.DatabaseURL)
 	server := api.NewServer(cfg.HTTPServer, store)
 	server.Start(ctx)
 }

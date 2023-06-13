@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/kashifsoofi/blog-code-samples/movies-api-with-go-chi-and-memory-store/store"
+	"github.com/kashifsoofi/blog-code-samples/movies-api-with-go-chi-and-postgres/store"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/render"
@@ -48,7 +48,7 @@ func NewMovieListResponse(movies []store.Movie) []render.Renderer {
 }
 
 func (s *Server) handleListMovies(w http.ResponseWriter, r *http.Request) {
-	movies, err := s.store.GetAll()
+	movies, err := s.store.GetAll(r.Context())
 	if err != nil {
 		render.Render(w, r, ErrInternalServerError)
 		return
@@ -65,7 +65,7 @@ func (s *Server) handleGetMovie(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	movie, err := s.store.GetByID(id)
+	movie, err := s.store.GetByID(r.Context(), id)
 	if err != nil {
 		var rnfErr *store.RecordNotFoundError
 		if errors.As(err, &rnfErr) {
@@ -106,7 +106,7 @@ func (s *Server) handleCreateMovie(w http.ResponseWriter, r *http.Request) {
 		ReleaseDate: data.ReleaseDate,
 		TicketPrice: data.TicketPrice,
 	}
-	err := s.store.Create(createMovieParams)
+	err := s.store.Create(r.Context(), createMovieParams)
 	if err != nil {
 		var dupKeyErr *store.DuplicateKeyError
 		if errors.As(err, &dupKeyErr) {
@@ -152,7 +152,7 @@ func (s *Server) handleUpdateMovie(w http.ResponseWriter, r *http.Request) {
 		ReleaseDate: data.ReleaseDate,
 		TicketPrice: data.TicketPrice,
 	}
-	err = s.store.Update(id, updateMovieParams)
+	err = s.store.Update(r.Context(), id, updateMovieParams)
 	if err != nil {
 		var rnfErr *store.RecordNotFoundError
 		if errors.As(err, &rnfErr) {
@@ -175,7 +175,7 @@ func (s *Server) handleDeleteMovie(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = s.store.Delete(id)
+	err = s.store.Delete(r.Context(), id)
 	if err != nil {
 		var rnfErr *store.RecordNotFoundError
 		if errors.As(err, &rnfErr) {

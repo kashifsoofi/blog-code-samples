@@ -26,12 +26,12 @@ type Database struct {
 	MaxOpenConnections int    `envconfig:"DATABASE_MAX_OPEN_CONNECTIONS" default:"10"`
 }
 
-func Load() (*Configuration, error) {
-	cfg := Configuration{}
+func Load() (Configuration, error) {
+	var cfg Configuration
 	err := envconfig.Process(envPrefix, &cfg)
 	if err != nil {
-		return nil, err
+		return cfg, err
 	}
 
-	return &cfg, nil
+	return cfg, nil
 }

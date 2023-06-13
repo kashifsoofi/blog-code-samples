@@ -1,9 +1,8 @@
-package postgres
+package store
 
 import (
 	"context"
 	"database/sql"
-	"movies-api/store"
 	"strings"
 	"time"
 
@@ -39,14 +38,14 @@ func (s *PostgresMoviesStore) close() error {
 	return s.dbx.Close()
 }
 
-func (s *PostgresMoviesStore) GetAll(ctx context.Context) ([]*store.Movie, error) {
+func (s *PostgresMoviesStore) GetAll(ctx context.Context) ([]Movie, error) {
 	err := s.connect(ctx)
 	if err != nil {
 		return nil, err
 	}
 	defer s.close()
 
-	var movies []*store.Movie
+	var movies []Movie
 	if err := s.dbx.SelectContext(
 		ctx,
 		&movies,
@@ -59,14 +58,14 @@ func (s *PostgresMoviesStore) GetAll(ctx context.Context) ([]*store.Movie, error
 	return movies, nil
 }
 
-func (s *PostgresMoviesStore) GetById(ctx context.Context, id uuid.UUID) (*store.Movie, error) {
+func (s *PostgresMoviesStore) GetByID(ctx context.Context, id uuid.UUID) (Movie, error) {
 	err := s.connect(ctx)
 	if err != nil {
-		return nil, err
+		return Movie{}, err
 	}
 	defer s.close()
 
-	var movie store.Movie
+	var movie Movie
 	if err := s.dbx.GetContext(
 		ctx,
 		&movie,
@@ -76,24 +75,24 @@ func (s *PostgresMoviesStore) GetById(ctx context.Context, id uuid.UUID) (*store
 		WHERE id = $1`,
 		id); err != nil {
 		if err != sql.ErrNoRows {
-			return nil, err
+			return Movie{}, err
 		}
 
-		return nil, &store.RecordNotFoundError{}
+		return Movie{}, &RecordNotFoundError{}
 	}
 
-	return &movie, nil
+	return movie, nil
 }
 
-func (s *PostgresMoviesStore) Create(ctx context.Context, createMovieParams store.CreateMovieParams) error {
+func (s *PostgresMoviesStore) Create(ctx context.Context, createMovieParams CreateMovieParams) error {
 	err := s.connect(ctx)
 	if err != nil {
 		return err
 	}
 	defer s.close()
 
-	movie := store.Movie{
-		Id:          createMovieParams.Id,
+	movie := Movie{
+		ID:          createMovieParams.ID,
 		Title:       createMovieParams.Title,
 		Director:    createMovieParams.Director,
 		ReleaseDate: createMovieParams.ReleaseDate,
@@ -110,7 +109,7 @@ func (s *PostgresMoviesStore) Create(ctx context.Context, createMovieParams stor
 			(:id, :title, :director, :release_date, :ticket_price, :created_at, :updated_at)`,
 		movie); err != nil {
 		if strings.Contains(err.Error(), "SQLSTATE 23505") {
-			return &store.DuplicateIdError{Id: createMovieParams.Id}
+			return &DuplicateKeyError{ID: createMovieParams.ID}
 		}
 		return err
 	}
@@ -118,15 +117,15 @@ func (s *PostgresMoviesStore) Create(ctx context.Context, createMovieParams stor
 	return nil
 }
 
-func (s *PostgresMoviesStore) Update(ctx context.Context, id uuid.UUID, updateMovieParams store.UpdateMovieParams) error {
+func (s *PostgresMoviesStore) Update(ctx context.Context, id uuid.UUID, updateMovieParams UpdateMovieParams) error {
 	err := s.connect(ctx)
 	if err != nil {
 		return err
 	}
 	defer s.close()
 
-	movie := store.Movie{
-		Id:          id,
+	movie := Movie{
+		ID:          id,
 		Title:       updateMovieParams.Title,
 		Director:    updateMovieParams.Director,
 		ReleaseDate: updateMovieParams.ReleaseDate,

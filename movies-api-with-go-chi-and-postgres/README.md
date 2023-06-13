@@ -1,5 +1,8 @@
 # REST API with Go, Chi, Postgres and sqlx
-This is a continuation of an earlier post [REST API with Go, Chi and InMemory Store](https://kashifsoofi.github.io/go/rest/restapi-with-go-chi-and-inmemory-store/). In this tutorial I will extend the service to store data in a [Postgres](https://www.postgresql.org/) database. I will use [Docker](https://www.docker.com/) to run Postgres and use the same to run database migrations.
+This is a continuation of an earlier post [REST API with Go, Chi and InMemory Store](https://kashifsoofi.github.io/go/rest/restapi-with-go-chi-and-inmemory-store/). In this tutorial I will extend the service to store data in a [Postgres](https://www.postgresql.org/) database. I will use [Docker](https://www.docker.com/) to run Postgres and run database migrations.
+
+## Project Setup
+I will start by copying the content of `https://github.com/kashifsoofi/blog-code-samples/tree/main/movies-api-with-go-chi-and-memory-store`, placing it in a new folder `movies-api-with-go-chi-and-postgres` and updating module name in `go.mod` to match the new folder and updating in source files where its used. This will usually be the root of your `git` repo and will not be as elaborate as this.
 
 ## Setup Database Server
 I will be using a docker-compose to run Postgres in a docker container. This would allow us the add more services that our rest api is depenedent on e.g. redis server for distributed caching.
@@ -93,7 +96,7 @@ Add following in `docker-compose.dev-env.yml` file to add migrations container a
     command: "postgresql://postgres:Password123@movies.db:5432/moviesdb?sslmode=disable up"
 ```
 
-Open a terminal at the root of the project where docker-compose file is location and execute following command to start database server and apply migrations to create `uuid-ossp` extension and `movies` table.
+Open a terminal at the root of the project where docker-compose file is located and execute following command to start database server and apply migrations to create `uuid-ossp` extension and `movies` table.
 ```shell
 docker-compose -f docker-compose.dev-env.yml up -d
 ```
@@ -101,9 +104,9 @@ docker-compose -f docker-compose.dev-env.yml up -d
 ## Postgres Movies Store
 I will be using [sqlx](https://github.com/jmoiron/sqlx) to execute queries and map columns to struct fields and vice versa, `sqlx` is a library which provides a set of extensions on go's standard `database/sql` library.
 
-Add a new folder named `postgres` under `store` and a new file named `postgres_movies_store.go`. Add a new struct `PostgresMoviesStore` containing `databaseUrl` and a pointer to `sqlx.DB`, also add helper methods to `connect` to database and `close` connection as well.
+Add a new file named `postgres_movies_store.go`. Add a new struct `PostgresMoviesStore` containing `databaseUrl` and a pointer to `sqlx.DB`, also add helper methods to `connect` to database and `close` connection as well.
 ```go
-package postgres
+package store
 
 import (
 	"context"
@@ -120,7 +123,7 @@ type PostgresMoviesStore struct {
 	dbx         *sqlx.DB
 }
 
-func NewInMemoryMoviesStore(databaseUrl string) *PostgresMoviesStore {
+func NewPostgresMoviesStore(databaseUrl string) *PostgresMoviesStore {
 	return &PostgresMoviesStore{
 		databaseUrl: databaseUrl,
 	}
@@ -144,7 +147,7 @@ func (s *PostgresMoviesStore) close() error {
 Update `Movie` struct in `movies_store.go` file to add db tags, this allows sqlx to map struct members to column names.
 ```go
 type Movie struct {
-	Id          uuid.UUID
+	ID          uuid.UUID
 	Title       string
 	Director    string
 	ReleaseDate time.Time `db:"release_date"`
@@ -154,19 +157,32 @@ type Movie struct {
 }
 ```
 
+## Context
+We did not make use of the `Context` in the earlier sample `movies-api-with-go-chi-and-memory-store`, now that we are connecting to an external storage and package we are going to use to run queries support methods accepting `Context` we will update our `store.Interface` to accept `Context` and use that when running queries. `store.Interface` will be updated as follows
+```go
+type Interface interface {
+	GetAll(ctx context.Context) ([]Movie, error)
+	GetByID(ctx context.Context, id uuid.UUID) (Movie, error)
+	Create(ctx context.Context, createMovieParams CreateMovieParams) error
+	Update(ctx context.Context, id uuid.UUID, updateMovieParams UpdateMovieParams) error
+	Delete(ctx context.Context, id uuid.UUID) error
+}
+```
+We will also need to update `MemoryMoviesStore` methods to accept `Context` to satisfy `store.Interface` and update methods in `movies_handler` to pass request context using `r.Context()` when calling `store` methods.
+
 ### Create
-We connect to database using `connect` helper method, create a new instance of `Movie` and execute insert query with `NamedExecContext`. We are handling an `error` and return `DuplicateIdError` if `SqlState` of exception is `23505`. If insert is successful then we return `nil`.
+We connect to database using `connect` helper method, create a new instance of `Movie` and execute insert query with `NamedExecContext`. We are handling an `error` and return `DuplicateKeyError` if `SqlState` of exception is `23505`. If insert is successful then we return `nil`.
 Create function looks like
 ```go
-func (s *PostgresMoviesStore) Create(ctx context.Context, createMovieParams store.CreateMovieParams) error {
+func (s *PostgresMoviesStore) Create(ctx context.Context, createMovieParams CreateMovieParams) error {
 	err := s.connect(ctx)
 	if err != nil {
 		return err
 	}
 	defer s.close()
 
-	movie := store.Movie{
-		Id:          createMovieParams.Id,
+	movie := Movie{
+		ID:          createMovieParams.ID,
 		Title:       createMovieParams.Title,
 		Director:    createMovieParams.Director,
 		ReleaseDate: createMovieParams.ReleaseDate,
@@ -183,7 +199,7 @@ func (s *PostgresMoviesStore) Create(ctx context.Context, createMovieParams stor
 			(:id, :title, :director, :release_date, :ticket_price, :created_at, :updated_at)`,
 		movie); err != nil {
 		if strings.Contains(err.Error(), "SQLSTATE 23505") {
-			return &store.DuplicateIdError{Id: createMovieParams.Id}
+			return &DuplicateKeyError{ID: createMovieParams.ID}
 		}
 		return err
 	}
@@ -195,14 +211,14 @@ func (s *PostgresMoviesStore) Create(ctx context.Context, createMovieParams stor
 ### GetAll
 We connect to database using `connect` helper method, then use `SelectContext` method of `sqlx` to execute query, `sqlx` would map the columns to fields. If query is successful then we return the slice of loaded movies.
 ```go
-func (s *PostgresMoviesStore) GetAll(ctx context.Context) ([]*store.Movie, error) {
+func (s *PostgresMoviesStore) GetAll(ctx context.Context) ([]Movie, error) {
 	err := s.connect(ctx)
 	if err != nil {
 		return nil, err
 	}
 	defer s.close()
 
-	var movies []*store.Movie
+	var movies []Movie
 	if err := s.dbx.SelectContext(
 		ctx,
 		&movies,
@@ -216,17 +232,17 @@ func (s *PostgresMoviesStore) GetAll(ctx context.Context) ([]*store.Movie, error
 }
 ```
 
-### GetById
+### GetByID
 We connect to database using `connect` helper method, then use `GetContext` method to execute select query, `sqlx` would map the columns to fields. If the driver returns `sql.ErrNoRows` then we return `store.RecordNotFoundError`. If successful loaded `movie` record is returned.
 ```go
-func (s *PostgresMoviesStore) GetById(ctx context.Context, id uuid.UUID) (*store.Movie, error) {
+func (s *PostgresMoviesStore) GetByID(ctx context.Context, id uuid.UUID) (Movie, error) {
 	err := s.connect(ctx)
 	if err != nil {
-		return nil, err
+		return Movie{}, err
 	}
 	defer s.close()
 
-	var movie store.Movie
+	var movie Movie
 	if err := s.dbx.GetContext(
 		ctx,
 		&movie,
@@ -236,28 +252,28 @@ func (s *PostgresMoviesStore) GetById(ctx context.Context, id uuid.UUID) (*store
 		WHERE id = $1`,
 		id); err != nil {
 		if err != sql.ErrNoRows {
-			return nil, err
+			return Movie{}, err
 		}
 
-		return nil, &store.RecordNotFoundError{}
+		return Movie{}, &RecordNotFoundError{}
 	}
 
-	return &movie, nil
+	return movie, nil
 }
 ```
 
 ### Update
 We connect to database using `connect` helper method, then use `NamedExecContext` method to execute query to update an existing record.
 ```go
-func (s *PostgresMoviesStore) Update(ctx context.Context, id uuid.UUID, updateMovieParams store.UpdateMovieParams) error {
+func (s *PostgresMoviesStore) Update(ctx context.Context, id uuid.UUID, updateMovieParams UpdateMovieParams) error {
 	err := s.connect(ctx)
 	if err != nil {
 		return err
 	}
 	defer s.close()
 
-	movie := store.Movie{
-		Id:          id,
+	movie := Movie{
+		ID:          id,
 		Title:       updateMovieParams.Title,
 		Director:    updateMovieParams.Director,
 		ReleaseDate: updateMovieParams.ReleaseDate,
@@ -315,10 +331,10 @@ type Database struct {
 ```
 
 ## Dependency Injection
-Update `main.go` as follows to create a new instance of `PostgresMoviesStore`, I have opted to create instance of `PostgresMoviesStore` instead of `InMemoryMoviesStore`, solution can be enhanced to create either one of the dependency based on a configuration.
+Update `main.go` as follows to create a new instance of `PostgresMoviesStore`, I have opted to create instance of `PostgresMoviesStore` instead of `MemoryMoviesStore`, solution can be enhanced to create either one of the dependency based on a configuration.
 ```go
-// store := in_memory.NewInMemoryMoviesStore()
-store := postgres.NewPostgresMoviesStore(cfg.DatabaseURL)
+// store := store.NewMemoryMoviesStore()
+store := store.NewPostgresMoviesStore(cfg.DatabaseURL)
 ```
 
 ## Test
@@ -330,7 +346,7 @@ DATABASE_URL=postgresql://postgres:Password123@localhost:5432/moviesdb?sslmode=d
 ```
 
 ## Source
-Source code for the demo application is hosted on GitHub in [blog-code-samples](https://github.com/kashifsoofi/blog-code-samples/tree/main/restapi-with-go-chi-and-postgres) repository.
+Source code for the demo application is hosted on GitHub in [blog-code-samples](https://github.com/kashifsoofi/blog-code-samples/tree/main/movies-api-with-go-chi-and-postgres) repository.
 
 
 ## References

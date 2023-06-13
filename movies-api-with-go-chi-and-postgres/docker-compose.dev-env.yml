@@ -20,7 +20,8 @@ services:
 
   movies.db.migrations:
     depends_on:
-      - movies.db
+      movies.db:
+        condition: service_healthy
     image: movies.db.migrations
     build:
       context: ./db/
