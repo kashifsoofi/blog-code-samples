@@ -1,57 +1,55 @@
-package memory
+package store
 
 import (
 	"sync"
 	"time"
 
-	"github.com/kashifsoofi/blog-code-samples/movies-api-with-go-chi-and-memory-store/store"
-
 	"github.com/google/uuid"
 )
 
 type MemoryMoviesStore struct {
-	movies map[uuid.UUID]store.Movie
+	movies map[uuid.UUID]Movie
 	mu     sync.RWMutex
 }
 
 func NewMemoryMoviesStore() *MemoryMoviesStore {
 	return &MemoryMoviesStore{
-		movies: map[uuid.UUID]store.Movie{},
+		movies: map[uuid.UUID]Movie{},
 	}
 }
 
-func (s *MemoryMoviesStore) GetAll() ([]store.Movie, error) {
+func (s *MemoryMoviesStore) GetAll() ([]Movie, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
-	var movies []store.Movie
+	var movies []Movie
 	for _, m := range s.movies {
 		movies = append(movies, m)
 	}
 	return movies, nil
 }
 
-func (s *MemoryMoviesStore) GetByID(id uuid.UUID) (store.Movie, error) {
+func (s *MemoryMoviesStore) GetByID(id uuid.UUID) (Movie, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
 	m, ok := s.movies[id]
 	if !ok {
-		return store.Movie{}, &store.RecordNotFoundError{}
+		return Movie{}, &RecordNotFoundError{}
 	}
 
 	return m, nil
 }
 
-func (s *MemoryMoviesStore) Create(createMovieParams store.CreateMovieParams) error {
+func (s *MemoryMoviesStore) Create(createMovieParams CreateMovieParams) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	if _, ok := s.movies[createMovieParams.ID]; ok {
-		return &store.DuplicateKeyError{ID: createMovieParams.ID}
+		return &DuplicateKeyError{ID: createMovieParams.ID}
 	}
 
-	movie := store.Movie{
+	movie := Movie{
 		ID:          createMovieParams.ID,
 		Title:       createMovieParams.Title,
 		Director:    createMovieParams.Director,
@@ -65,13 +63,13 @@ func (s *MemoryMoviesStore) Create(createMovieParams store.CreateMovieParams) er
 	return nil
 }
 
-func (s *MemoryMoviesStore) Update(id uuid.UUID, updateMovieParams store.UpdateMovieParams) error {
+func (s *MemoryMoviesStore) Update(id uuid.UUID, updateMovieParams UpdateMovieParams) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	m, ok := s.movies[id]
 	if !ok {
-		return &store.RecordNotFoundError{}
+		return &RecordNotFoundError{}
 	}
 
 	m.Title = updateMovieParams.Title

@@ -39,11 +39,10 @@ I like to add sub-packages to group related functionality together. To that exte
 └── movies-api-with-go-chi-and-memory-store/
     ├── api - this will contain rest routes, handlers etc.
     ├── config - this will contain anything related to service configuration
-    └── store/ - this will contain store interface
-        └── memory - in memory store implementation
+    └── store/ - this will contain store interface and store implementation
 ```
 
-I have only 2 resources, `health` and `movies`, however if you are serving more resources in a single rest service, feel free to add a folder per resource under `api`.
+I have only 2 resources, `health` and `movies`, however if you are serving more resources in a single rest service, feel free to add a folder per resource under `api`. Same for the `store` if you are adding multiple `stores` e.g. `Postgres` and a `Redis` cache to check before hitting `Postgres` then feel free to add specific folders for each store.
 
 ## Configuration
 Add a folder named `config` and a file named `config.go`. I like to keep all application configuration in a single place and will be using excellent `envconfig` package to load the configuration, also setting some default values for options. This package allows us to load application configuration from Environment Variables, same thing can be done with standard Go packages but in my opinion this package provides nice abstraction without losing readability.
@@ -162,65 +161,63 @@ func (e *RecordNotFoundError) Error() string {
 ```
 
 ## MemoryMoviesStore
-Add folder under `store` named `memory` and a file named `memory_movies_store.go`. Add a struct `MemoryMoviesStore` with a map field to store movies in memory. Also add a `RWMutex` field to avoid concurrent read/write access to movies field.
+Add a new file named `memory_movies_store.go` in `store` folder. Add a struct `MemoryMoviesStore` with a map field to store movies in memory. Also add a `RWMutex` field to avoid concurrent read/write access to movies field.
 
 We will implement all methods defined for `store.Interface` to add/remove movies to map field of the `MemoryMoviesStore` struct. For reading we lock the collection for reading, read the result and release the lock using `defer`. For writing we acquire a write lock instead of a read lock.
 
 ```go
-package memory
+package store
 
 import (
 	"sync"
 	"time"
 
-	"github.com/kashifsoofi/blog-code-samples/movies-api-with-go-chi-and-memory-store/store"
-
 	"github.com/google/uuid"
 )
 
 type MemoryMoviesStore struct {
-	movies map[uuid.UUID]store.Movie
+	movies map[uuid.UUID]Movie
 	mu     sync.RWMutex
 }
 
 func NewMemoryMoviesStore() *MemoryMoviesStore {
 	return &MemoryMoviesStore{
-		movies: map[uuid.UUID]store.Movie{},
+		movies: map[uuid.UUID]Movie{},
 	}
 }
 
-func (s *MemoryMoviesStore) GetAll() ([]store.Movie, error) {
+func (s *MemoryMoviesStore) GetAll() ([]Movie, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
-	var movies []store.Movie
+	var movies []Movie
 	for _, m := range s.movies {
 		movies = append(movies, m)
 	}
 	return movies, nil
 }
 
-func (s *MemoryMoviesStore) GetByID(id uuid.UUID) (store.Movie, error) {
+func (s *MemoryMoviesStore) GetByID(id uuid.UUID) (Movie, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
 	m, ok := s.movies[id]
 	if !ok {
-		return store.Movie{}, &store.RecordNotFoundError{}
+		return Movie{}, &RecordNotFoundError{}
 	}
 
 	return m, nil
 }
 
-func (s *MemoryMoviesStore) Create(createMovieParams store.CreateMovieParams) error {
+func (s *MemoryMoviesStore) Create(createMovieParams CreateMovieParams) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	if _, ok := s.movies[createMovieParams.ID]; ok {
-		return &store.DuplicateKeyError{ID: createMovieParams.ID}
+		return &DuplicateKeyError{ID: createMovieParams.ID}
 	}
 
-	movie := store.Movie{
+	movie := Movie{
 		ID:          createMovieParams.ID,
 		Title:       createMovieParams.Title,
 		Director:    createMovieParams.Director,
@@ -234,13 +231,13 @@ func (s *MemoryMoviesStore) Create(createMovieParams store.CreateMovieParams) er
 	return nil
 }
 
-func (s *MemoryMoviesStore) Update(id uuid.UUID, updateMovieParams store.UpdateMovieParams) error {
+func (s *MemoryMoviesStore) Update(id uuid.UUID, updateMovieParams UpdateMovieParams) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	m, ok := s.movies[id]
 	if !ok {
-		return &store.RecordNotFoundError{}
+		return &RecordNotFoundError{}
 	}
 
 	m.Title = updateMovieParams.Title
@@ -671,7 +668,7 @@ import (
 
 	"github.com/kashifsoofi/blog-code-samples/movies-api-with-go-chi-and-memory-store/api"
 	"github.com/kashifsoofi/blog-code-samples/movies-api-with-go-chi-and-memory-store/config"
-	"github.com/kashifsoofi/blog-code-samples/movies-api-with-go-chi-and-memory-store/store/memory"
+	"github.com/kashifsoofi/blog-code-samples/movies-api-with-go-chi-and-memory-store/store"
 )
 
 func main() {
@@ -681,7 +678,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	store := memory.NewMemoryMoviesStore()
+	store := store.NewMemoryMoviesStore()
 	server := api.NewServer(cfg.HTTPServer, store)
 	server.Start(ctx)
 }

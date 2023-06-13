@@ -6,7 +6,7 @@ import (
 
 	"github.com/kashifsoofi/blog-code-samples/movies-api-with-go-chi-and-memory-store/api"
 	"github.com/kashifsoofi/blog-code-samples/movies-api-with-go-chi-and-memory-store/config"
-	"github.com/kashifsoofi/blog-code-samples/movies-api-with-go-chi-and-memory-store/store/memory"
+	"github.com/kashifsoofi/blog-code-samples/movies-api-with-go-chi-and-memory-store/store"
 )
 
 func main() {
@@ -16,7 +16,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	store := memory.NewMemoryMoviesStore()
+	store := store.NewMemoryMoviesStore()
 	server := api.NewServer(cfg.HTTPServer, store)
 	server.Start(ctx)
 }
