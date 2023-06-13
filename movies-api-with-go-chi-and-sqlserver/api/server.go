@@ -4,24 +4,24 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"movies-api/config"
 	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
 
-	"movies-api/store"
+	"github.com/kashifsoofi/blog-code-samples/movies-api-with-go-chi-and-memory-store/config"
+	"github.com/kashifsoofi/blog-code-samples/movies-api-with-go-chi-and-memory-store/store"
 
 	"github.com/go-chi/chi/v5"
 )
 
 type Server struct {
 	cfg    config.HTTPServer
-	store  store.MoviesStore
+	store  store.Interface
 	router *chi.Mux
 }
 
-func NewServer(cfg config.HTTPServer, store store.MoviesStore) *Server {
+func NewServer(cfg config.HTTPServer, store store.Interface) *Server {
 	srv := &Server{
 		cfg:    cfg,
 		store:  store,

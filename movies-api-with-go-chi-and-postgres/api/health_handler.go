@@ -14,9 +14,7 @@ func (hr healthResponse) Render(w http.ResponseWriter, r *http.Request) error {
 	return nil
 }
 
-func (s *Server) handleGetHealth() http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		health := healthResponse{OK: true}
-		render.Render(w, r, health)
-	}
+func (s *Server) handleGetHealth(w http.ResponseWriter, r *http.Request) {
+	health := healthResponse{OK: true}
+	render.Render(w, r, health)
 }
