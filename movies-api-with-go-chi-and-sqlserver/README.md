@@ -65,7 +65,7 @@ For migrations I have created a folder `migrations` under `db` folder. I execute
 ```shell
 migrate create -ext sql -dir db/migrations -seq table_movies_create
 ```
-This would create 4 files, for each migration there would be an `up` and a `down` script, `up` would be executed when applying migration and `down` would be executed when rolling back a change.
+This would create 2 files, for each migration there would be an `up` and a `down` script, `up` would be executed when applying migration and `down` would be executed when rolling back a change.
 
 - `000001_table_movies_create.up.sql`
 ```sql
@@ -122,13 +122,12 @@ docker-compose -f docker-compose.dev-env.yml up -d
 ## SQL Server Movies Store
 I will be using [sqlx](https://github.com/jmoiron/sqlx) to execute queries and map columns to struct fields and vice versa, `sqlx` is a library which provides a set of extensions on go's standard `database/sql` library.
 
-Add a new folder named `sqlserver` under `store` and a new file named `sqlserver_movies_store.go`. Add a new struct `SqlServerMoviesStore` containing `databaseUrl` and a pointer to `sqlx.DB`, also add helper methods to `connect` to database and `close` connection as well. Also note that I have added a `noOpMapper` method and set as MapperFunc of `sqlx.DB`, reason for this is to use the same casing as the struct field name. Default behaviour for `sqlx` is to map field names to lower case column names.
+Add a new file named `sqlserver_movies_store.go` under `store` folder. Add a new struct `SqlServerMoviesStore` containing `databaseUrl` and a pointer to `sqlx.DB`, also add helper methods to `connect` to database and `close` connection as well. Also note that I have added a `noOpMapper` method and set as MapperFunc of `sqlx.DB`, reason for this is to use the same casing as the struct field name. Default behaviour for `sqlx` is to map field names to lower case column names.
 ```go
 package sqlserver
 
 import (
 	"context"
-	"movies-api/store"
 
 	"github.com/jmoiron/sqlx"
 	_ "github.com/microsoft/go-mssqldb"
@@ -165,19 +164,29 @@ func (s *SqlServerMoviesStore) close() error {
 }
 ```
 
+### Add db tag
+Update `Movie` struct in `movies_store.go` file to add db tag for `ID` field, this allows sqlx to map `ID` field to correct column. Alternative to this is to use the `AS` in select queries or update the column name in database table as `ID`. All other fields will be mapped correctly by using `noOpMapper` from the above section.
+
+```go
+type Movie struct {
+	ID          uuid.UUID `db:"Id"`
+	...
+}
+```
+
 ### Create
 We connect to database using `connect` helper method, create a new instance of `Movie` and execute insert query with `NamedExecContext`. We are handling an `error` and return `DuplicateIdError` if returned error contains text `Cannot insert duplicate key`. If insert is successful then we return `nil`.
 Create function looks like
 ```go
-func (s *SqlServerMoviesStore) Create(ctx context.Context, createMovieParams store.CreateMovieParams) error {
+func (s *SqlServerMoviesStore) Create(ctx context.Context, createMovieParams CreateMovieParams) error {
 	err := s.connect(ctx)
 	if err != nil {
 		return err
 	}
 	defer s.close()
 
-	movie := store.Movie{
-		Id:          createMovieParams.Id,
+	movie := Movie{
+		ID:          createMovieParams.ID,
 		Title:       createMovieParams.Title,
 		Director:    createMovieParams.Director,
 		ReleaseDate: createMovieParams.ReleaseDate,
@@ -194,7 +203,7 @@ func (s *SqlServerMoviesStore) Create(ctx context.Context, createMovieParams sto
 			(:Id, :Title, :Director, :ReleaseDate, :TicketPrice, :CreatedAt, :UpdatedAt)`,
 		movie); err != nil {
 		if strings.Contains(err.Error(), "Cannot insert duplicate key") {
-			return &store.DuplicateIdError{Id: createMovieParams.Id}
+			return &DuplicateKeyError{ID: createMovieParams.ID}
 		}
 		return err
 	}
@@ -206,14 +215,14 @@ func (s *SqlServerMoviesStore) Create(ctx context.Context, createMovieParams sto
 ### GetAll
 We connect to database using `connect` helper method, then use `SelectContext` method of `sqlx` to execute query, `sqlx` would map the columns to fields. If query is successful then we return the slice of loaded movies.
 ```go
-func (s *SqlServerMoviesStore) GetAll(ctx context.Context) ([]*store.Movie, error) {
+func (s *SqlServerMoviesStore) GetAll(ctx context.Context) ([]Movie, error) {
 	err := s.connect(ctx)
 	if err != nil {
 		return nil, err
 	}
 	defer s.close()
 
-	var movies []*store.Movie
+	var movies []Movie
 	if err := s.dbx.SelectContext(
 		ctx,
 		&movies,
@@ -231,14 +240,14 @@ func (s *SqlServerMoviesStore) GetAll(ctx context.Context) ([]*store.Movie, erro
 We connect to database using `connect` helper method, then use `GetContext` method to execute select query, `sqlx` would map the columns to fields. If the driver returns `sql.ErrNoRows` then we return `store.RecordNotFoundError`. If successful loaded `movie` record is returned.
 Please note `sql.Named` query paramter, this is needed by the sql server driver to pass named parameters.
 ```go
-func (s *SqlServerMoviesStore) GetById(ctx context.Context, id uuid.UUID) (*store.Movie, error) {
+func (s *SqlServerMoviesStore) GetByID(ctx context.Context, id uuid.UUID) (Movie, error) {
 	err := s.connect(ctx)
 	if err != nil {
-		return nil, err
+		return Movie{}, err
 	}
 	defer s.close()
 
-	var movie store.Movie
+	var movie Movie
 	if err := s.dbx.GetContext(
 		ctx,
 		&movie,
@@ -248,28 +257,28 @@ func (s *SqlServerMoviesStore) GetById(ctx context.Context, id uuid.UUID) (*stor
 		WHERE Id = @id`,
 		sql.Named("id", id)); err != nil {
 		if err != sql.ErrNoRows {
-			return nil, err
+			return Movie{}, err
 		}
 
-		return nil, &store.RecordNotFoundError{}
+		return Movie{}, &RecordNotFoundError{}
 	}
 
-	return &movie, nil
+	return movie, nil
 }
 ```
 
 ### Update
 We connect to database using `connect` helper method, then use `NamedExecContext` method to execute query to update an existing record.
 ```go
-func (s *SqlServerMoviesStore) Update(ctx context.Context, id uuid.UUID, updateMovieParams store.UpdateMovieParams) error {
+func (s *SqlServerMoviesStore) Update(ctx context.Context, id uuid.UUID, updateMovieParams UpdateMovieParams) error {
 	err := s.connect(ctx)
 	if err != nil {
 		return err
 	}
 	defer s.close()
 
-	movie := store.Movie{
-		Id:          id,
+	movie := Movie{
+		ID:          id,
 		Title:       updateMovieParams.Title,
 		Director:    updateMovieParams.Director,
 		ReleaseDate: updateMovieParams.ReleaseDate,
@@ -327,10 +336,10 @@ type Database struct {
 ```
 
 ## Dependency Injection
-Update `main.go` as follows to create a new instance of `SqlServerMoviesStore`, I have opted to create instance of `SqlServerMoviesStore` instead of `InMemoryMoviesStore`, solution can be enhanced to create either one of the dependency based on a configuration.
+Update `main.go` as follows to create a new instance of `SqlServerMoviesStore`, I have opted to create instance of `SqlServerMoviesStore` instead of `MemoryMoviesStore`, solution can be enhanced to create either one of the dependency based on a configuration.
 ```go
-// store := in_memory.NewInMemoryMoviesStore()
-store := sqlserver.SqlServerMoviesStore(cfg.DatabaseURL)
+// store := store.NewMemoryMoviesStore()
+store := store.NewSqlServerMoviesStore(cfg.DatabaseURL)
 ```
 
 ## Test
