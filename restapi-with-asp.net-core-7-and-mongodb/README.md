@@ -59,7 +59,7 @@ Add following to the appsettings.json
 "MoviesStoreConfiguration": {
     "ConnectionString": "mongodb://localhost:27017",
     "DatabaseName": "MoviesStore",
-    "BooksCollectionName": "Movies"
+    "MoviesCollectionName": "Movies"
   }
 ```
 Register the configuration in Dependency Injection container in `Program.cs`
