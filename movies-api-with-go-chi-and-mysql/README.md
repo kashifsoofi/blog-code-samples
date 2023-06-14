@@ -150,6 +150,16 @@ func (s *MySqlMoviesStore) close() error {
 }
 ```
 
+### Add db tag
+Update `Movie` struct in `movies_store.go` file to add db tag for `ID` field, this allows sqlx to map `ID` field to correct column. Alternative to this is to use the `AS` in select queries. All other fields will be mapped correctly by using `noOpMapper` from the above section.
+
+```go
+type Movie struct {
+	ID          uuid.UUID `db:"Id"`
+	...
+}
+```
+
 ## Context
 We did not make use of the `Context` in the earlier sample `movies-api-with-go-chi-and-memory-store`, now that we are connecting to an external storage and package we are going to use to run queries support methods accepting `Context` we will update our `store.Interface` to accept `Context` and use that when running queries. `store.Interface` will be updated as follows
 ```go
