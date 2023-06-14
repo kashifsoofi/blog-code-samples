@@ -337,8 +337,8 @@ type Database struct {
 ## Dependency Injection
 Update `main.go` as follows to create a new instance of `MySqlMoviesStore`, I have opted to create instance of `MySqlMoviesStore` instead of `MemoryMoviesStore`, solution can be enhanced to create either one of the dependency based on a configuration.
 ```go
-// store := in_memory.NewInMemoryMoviesStore()
-store := mysql.NewMySqlMoviesStore(cfg.DatabaseURL)
+// store := store.NewMemoryMoviesStore()
+store := store.NewMySqlMoviesStore(cfg.DatabaseURL)
 ```
 
 ## Test
