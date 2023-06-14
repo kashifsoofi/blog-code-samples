@@ -236,7 +236,7 @@ func (s *SqlServerMoviesStore) GetAll(ctx context.Context) ([]Movie, error) {
 }
 ```
 
-### GetById
+### GetByID
 We connect to database using `connect` helper method, then use `GetContext` method to execute select query, `sqlx` would map the columns to fields. If the driver returns `sql.ErrNoRows` then we return `store.RecordNotFoundError`. If successful loaded `movie` record is returned.
 Please note `sql.Named` query paramter, this is needed by the sql server driver to pass named parameters.
 ```go
