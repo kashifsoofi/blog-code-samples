@@ -160,7 +160,7 @@ type Movie struct {
 }
 ```
 
-## Context
+### Context
 We did not make use of the `Context` in the earlier sample `movies-api-with-go-chi-and-memory-store`, now that we are connecting to an external storage and package we are going to use to run queries support methods accepting `Context` we will update our `store.Interface` to accept `Context` and use that when running queries. `store.Interface` will be updated as follows
 ```go
 type Interface interface {

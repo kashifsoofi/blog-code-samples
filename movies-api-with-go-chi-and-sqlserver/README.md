@@ -174,6 +174,19 @@ type Movie struct {
 }
 ```
 
+### Context
+We did not make use of the `Context` in the earlier sample `movies-api-with-go-chi-and-memory-store`, now that we are connecting to an external storage and package we are going to use to run queries support methods accepting `Context` we will update our `store.Interface` to accept `Context` and use that when running queries. `store.Interface` will be updated as follows
+```go
+type Interface interface {
+	GetAll(ctx context.Context) ([]Movie, error)
+	GetByID(ctx context.Context, id uuid.UUID) (Movie, error)
+	Create(ctx context.Context, createMovieParams CreateMovieParams) error
+	Update(ctx context.Context, id uuid.UUID, updateMovieParams UpdateMovieParams) error
+	Delete(ctx context.Context, id uuid.UUID) error
+}
+```
+We will also need to update `MemoryMoviesStore` methods to accept `Context` to satisfy `store.Interface` and update methods in `movies_handler` to pass request context using `r.Context()` when calling `store` methods.
+
 ### Create
 We connect to database using `connect` helper method, create a new instance of `Movie` and execute insert query with `NamedExecContext`. We are handling an `error` and return `DuplicateIdError` if returned error contains text `Cannot insert duplicate key`. If insert is successful then we return `nil`.
 Create function looks like
