@@ -3,9 +3,10 @@ package main
 import (
 	"context"
 	"log"
-	"movies-api/api"
-	"movies-api/config"
-	"movies-api/store/sqlserver"
+
+	"github.com/kashifsoofi/blog-code-samples/movies-api-with-go-chi-and-sqlserver/api"
+	"github.com/kashifsoofi/blog-code-samples/movies-api-with-go-chi-and-sqlserver/config"
+	"github.com/kashifsoofi/blog-code-samples/movies-api-with-go-chi-and-sqlserver/store"
 )
 
 func main() {
@@ -15,8 +16,8 @@ func main() {
 		log.Fatal(err)
 	}
 
-	//store := in_memory.NewInMemoryMoviesStore()
-	store := sqlserver.NewSqlServerMoviesStore(cfg.DatabaseURL)
+	// store := store.NewMemoryMoviesStore()
+	store := store.NewSqlServerMoviesStore(cfg.DatabaseURL)
 	server := api.NewServer(cfg.HTTPServer, store)
 	server.Start(ctx)
 }
