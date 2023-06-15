@@ -266,7 +266,7 @@ DATABASE_URL=mongodb://root:Password123@localhost:27017 go run main.go
 ```
 
 ## Source
-Source code for the demo application is hosted on GitHub in [blog-code-samples](https://github.com/kashifsoofi/blog-code-samples/tree/main/restapi-with-go-chi-and-mongodb) repository.
+Source code for the demo application is hosted on GitHub in [blog-code-samples](https://github.com/kashifsoofi/blog-code-samples/tree/main/movies-api-with-go-chi-and-mongodb) repository.
 
 ## References
 In no particular order
