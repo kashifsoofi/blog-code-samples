@@ -10,6 +10,7 @@ const envPrefix = ""
 
 type Configuration struct {
 	HTTPServer
+	Database
 }
 
 type HTTPServer struct {

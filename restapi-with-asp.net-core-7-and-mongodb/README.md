@@ -10,7 +10,7 @@ version: '3.7'
 
 services:
   movies.db:
-    image: mongodb/mongodb-community-server:6.0-ubi8
+    image: mongodb/mongodb-community-server:6.0.5-ubuntu2204
     environment:
       - MONGODB_INITDB_ROOT_USERNAME=root
       - MONGODB_INITDB_ROOT_PASSWORD=Password123

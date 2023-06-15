@@ -16,7 +16,8 @@ func main() {
 		log.Fatal(err)
 	}
 
-	store := store.NewMemoryMoviesStore()
+	// store := store.NewMemoryMoviesStore()
+	store := store.NewMongoMoviesStore(cfg.Database)
 	server := api.NewServer(cfg.HTTPServer, store)
 	server.Start(ctx)
 }

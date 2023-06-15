@@ -8,7 +8,7 @@ import (
 )
 
 type Movie struct {
-	ID          uuid.UUID
+	ID          uuid.UUID `bson:"_id"`
 	Title       string
 	Director    string
 	ReleaseDate time.Time
