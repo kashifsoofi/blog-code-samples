@@ -1,0 +1,41 @@
+name: Integration Test Postgres
+
+jobs:
+  container-job:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./postgres-store-integration-test
+
+    services:
+      postgres:
+        image: postgres:14-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: Password123
+          POSTGRES_DB: moviesdb
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - "5432:5432"
+
+    steps:
+      - name: Check out
+        uses: actions/checkout@v3
+      - name: Setup .NET Core SDK
+        uses: actions/setup-dotnet@v3
+        with:
+          dotnet-version: 7.0.x
+      - name: Install dependencies
+        run: dotnet restore
+      - name: Build
+        run: dotnet build --configuration Release --no-restore
+      - name: Build migratinos Docker image
+        run: docker build --file ./db/Dockerfile -t movies.db.migrations .
+      - name: Run migrations
+        run: docker run movies.db.migrations
+      - name: Run integration tests
+        run: dotnet test --no-restore --no-build --verbosity normal
