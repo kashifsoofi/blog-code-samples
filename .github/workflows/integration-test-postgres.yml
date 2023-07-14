@@ -39,7 +39,7 @@ jobs:
       - name: Build
         run: dotnet build --configuration Release --no-restore
       - name: Build migratinos Docker image
-        run: docker build --file ./db/Dockerfile -t movies.db.migrations .
+        run: docker build --file ./Dockerfile -t movies.db.migrations ./db
       - name: Run migrations
         run: docker run movies.db.migrations
       - name: Run integration tests
