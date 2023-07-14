@@ -26,7 +26,7 @@ jobs:
           --health-timeout 5s
           --health-retries 5
         ports:
-          - "5432:5432"
+          - 5432:5432
 
     steps:
       - uses: actions/checkout@v3
@@ -41,6 +41,6 @@ jobs:
       - name: Build migratinos Docker image
         run: docker build --file ./db/Dockerfile -t movies.db.migrations ./db
       - name: Run migrations
-        run: docker run movies.db.migrations "Host=postgres;Username=postgres;Password=Password123;Database=moviesdb;Integrated Security=false;"
+        run: docker run movies.db.migrations "Host=localhost;Username=postgres;Password=Password123;Database=moviesdb;Integrated Security=false;"
       - name: Run integration tests
         run: dotnet test --no-restore --no-build --verbosity normal
