@@ -41,6 +41,6 @@ jobs:
       - name: Build migratinos Docker image
         run: docker build --file ./db/Dockerfile -t movies.db.migrations ./db
       - name: Run migrations
-        run: docker run movies.db.migrations
+        run: docker run movies.db.migrations "Host=localhost;Username=postgres;Password=Password123;Database=moviesdb;Integrated Security=false;"
       - name: Run integration tests
         run: dotnet test --no-restore --no-build --verbosity normal
