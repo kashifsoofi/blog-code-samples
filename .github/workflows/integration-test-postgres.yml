@@ -3,8 +3,8 @@ name: Integration Test Postgres
 on:
   push:
     branches: [ "main" ]
-    paths:
-     - 'postgres-store-integration-test/**'
+    # paths:
+    #  - 'postgres-store-integration-test/**'
 
 jobs:
   build:
