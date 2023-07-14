@@ -43,4 +43,4 @@ jobs:
       - name: Run migrations
         run: docker run --add-host=host.docker.internal:host-gateway movies.db.migrations "Host=host.docker.internal;Username=postgres;Password=Password123;Database=moviesdb;Integrated Security=false;"
       - name: Run integration tests
-        run: dotnet test --no-restore --no-build --verbosity normal
+        run: dotnet test --configuration Release --no-restore --no-build --verbosity normal
