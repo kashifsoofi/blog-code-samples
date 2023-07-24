@@ -429,7 +429,6 @@ name: Integration Test MySQL (.NET)
 
 on:
   push:
-  pull_request:
     branches: [ "main" ]
     paths:
      - 'integration-test-mysql-dotnet/**'
@@ -445,8 +444,8 @@ jobs:
       movies.db.test:
         image: mysql:5.7
         env:
-          - MYSQL_DATABASE=defaultdb
-          - MYSQL_ROOT_PASSWORD=Password123
+          MYSQL_DATABASE: defaultdb
+          MYSQL_ROOT_PASSWORD: Password123
         options: >-
           --health-cmd="mysqladmin ping"
           --health-interval=10s
@@ -480,7 +479,6 @@ name: Integration Test MySQL (.NET) with docker-compose
 
 on:
   push:
-  pull_request:
     branches: [ "main" ]
     paths:
      - 'integration-test-mysql-dotnet/**'
@@ -510,7 +508,7 @@ jobs:
         run: docker compose -f "docker-compose.dev-env.yml" down --remove-orphans --rmi all --volumes
 ```
 ## Source
-Source code for the demo application is hosted on GitHub in [blog-code-samples](https://github.com/kashifsoofi/blog-code-samples/tree/main/integration-test-postgres-with-testcontainers-dotnet) repository.
+Source code for the demo application is hosted on GitHub in [blog-code-samples](https://github.com/kashifsoofi/blog-code-samples/tree/main/integration-test-mysql-dotnet) repository.
 
 Source for `Integration Test MySQL (.NET)` workflow is in [integration-test-mysql-dotnet.yml](https://github.com/kashifsoofi/blog-code-samples/blob/main/.github/workflows/integration-test-mysql-dotnet.yml).
 
