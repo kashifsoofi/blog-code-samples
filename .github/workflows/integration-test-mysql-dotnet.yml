@@ -2,7 +2,6 @@ name: Integration Test MySQL (.NET)
 
 on:
   push:
-  pull_request:
     branches: [ "main" ]
     paths:
      - 'integration-test-mysql-dotnet/**'
