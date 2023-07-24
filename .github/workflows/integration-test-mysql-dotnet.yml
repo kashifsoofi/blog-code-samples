@@ -18,8 +18,8 @@ jobs:
       movies.db.test:
         image: mysql:5.7
         env:
-          - MYSQL_DATABASE=defaultdb
-          - MYSQL_ROOT_PASSWORD=Password123
+          MYSQL_DATABASE: defaultdb
+          MYSQL_ROOT_PASSWORD: Password123
         options: >-
           --health-cmd="mysqladmin ping"
           --health-interval=10s
