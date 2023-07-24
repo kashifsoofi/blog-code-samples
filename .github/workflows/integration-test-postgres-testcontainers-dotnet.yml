@@ -5,14 +5,14 @@ on:
   pull_request:
     branches: [ "main" ]
     paths:
-     - 'integration-test-postgres-with-testcontainers-dotnet/**'
+     - 'postgres-store-integration-test/**'
     
 jobs:
   build:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: integration-test-postgres-with-testcontainers-dotnet
+        working-directory: postgres-store-integration-test
 
     steps:
       - uses: actions/checkout@v3
