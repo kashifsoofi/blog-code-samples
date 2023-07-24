@@ -1,320 +1,443 @@
-# REST API using ASP.NET Core 7 and MySql
-This is a continuation of an earlier post [REST API with ASP.NET Core 7 and InMemory Store](https://kashifsoofi.github.io/aspnetcore/rest/restapi-with-asp.net-core-7-and-inmemory-store/). In this tutorial I will extend the service to store data in a [MySQL Database](https://www.mysql.com/). I will use [Docker](https://www.docker.com/) to run MySQL and use the same to run database migrations.
+# Integration Testing MySQL Store
+This is a continuation of an earlier post [REST API with ASP.NET Core 7 and MySql](https://kashifsoofi.github.io/aspnetcore/rest/postgres/restapi-with-asp.net-core-7-and-mysql/). In this tutorial I will extend the sample to add integration tests to verify our implementation of `MySqlMoviesStore`.
 
-## Setup Database Server
-I will be using a docker-compose to run MySQL in a docker container. This would allow us the add more services that our rest api is depenedent on e.g. redis server for distributed caching.
+## Why Integration Test
+As per definition from [Wikipedia](https://en.wikipedia.org/wiki/Integration_testing) integration testing is the phase in which individual software modules are combined and tested as a group.
 
-Let's start by adding a new file by right clicking on Solution name in Visual Studio and Add New File. I like to name file as `docker-compose.dev-env.yml`, feel free to name it as you like. Add following content to add a database instance for movies rest api.
-```yaml
-version: '3.7'
+This is important in our case as we are using an external system to store our data and before we can declare that it is ready to use we need to make sure that it is working as intended. It would also help us verify if our Dapper mapping is correct especially if we are using any custom mapping.
 
-services:
-  movies.db:
-    image: mysql:5.7
-    environment:
-      - MYSQL_DATABASE=defaultdb
-      - MYSQL_ROOT_PASSWORD=Password123
-    volumes:
-      - moviesdbdata:/var/lib/postgresql/data/
-    ports:
-      - "33060:3306"
+Our options are
+* One way would be to run the database server and our api project and invoke the endpoints either from the Swagger UI, curl or Postman with defined data and then verify if our service is storing and retrieving the data correctly.This is tedious to do everytime we make a change, add or remove a property to our domain model, add a new endpoint for new use case.
+* Add set of integration tests to our source code and run everytime we make a change, this would ensure that any change we have made has not broken any existing funcationality and scenario. Important thing to remember is this is not set in stone and these should be updated as the funcationality evolves, new functionality would lead to adding new test cases.
 
-volumes:
-  moviesdbdata:
-```
+Focus of this article would be to implement automated integration tests for `MySqlMoviesStore` we implemented earlier.
 
-Open a terminal at the root of the solution where docker-compose file is location and execute following command to start database server.
-```shell
-docker-compose -f docker-compose.dev-env.yml up -d
-```
-
-## Database Migrations
-Before we can start using Postgres we need to create a table to store our data. I will be using excellent [roundhouse](https://github.com/chucknorris/roundhouse) database deployment system to execute database migrations.
-
-I usually create a container that has all database migrations and tool to execute those migrations. I name migrations as [yyyyMMdd-HHmm-migration-name.sql] but please feel free to use any naming scheme, keep in mind how the tool would order multiple files to run those migrations. I have also added a `wait-for-db.csx` file that I would use as the entry point for database migrations container. This is a `dotnet-script` file and would be run using [dotnet-script](https://github.com/dotnet-script/dotnet-script). I have pinned the versions that are compatible with .net sdk 3.1 as this the version `roundhouse` is build against at the time of writing.
-
-Dockerfile to run database migrations
-```yaml
-FROM mcr.microsoft.com/dotnet/sdk:3.1-alpine
-
-ENV PATH="$PATH:/root/.dotnet/tools"
-
-RUN dotnet tool install -g dotnet-script --version 1.1.0
-RUN dotnet tool install -g dotnet-roundhouse --version 1.3.1
-
-WORKDIR /db
-
-# Copy all db files
-COPY . .
-
-ENTRYPOINT ["dotnet-script", "wait-for-db.csx", "--", "rh", "--silent", "--dt", "postgres", "-cs"]
-CMD ["Host=movies.db;Username=postgres;Password=Password123;Database=moviesdb;Integrated Security=false;"]
-```
-
-For migration, I have added following under `db\up` folder.
-- `20230523_1800_schema_create.sql`
-```sql
-CREATE SCHEMA IF NOT EXISTS Movies;
-```
-- `20230523_1801_table_movies_create.sql`
-```sql
-USE Movies;
-
-CREATE TABLE IF NOT EXISTS Movies (
-    Id          CHAR(36)        NOT NULL UNIQUE,
-    Title       VARCHAR(100)    NOT NULL,
-    Director    VARCHAR(100)    NOT NULL,
-    ReleaseDate DATETIME        NOT NULL,
-    TicketPrice DECIMAL(12, 4)  NOT NULL,
-    CreatedAt   DATETIME        NOT NULL,
-    UpdatedAt   DATETIME        NOT NULL,
-    PRIMARY KEY (Id)
-) ENGINE=INNODB;
-```
-
-Add following in `docker-compose.dev-env.yml` file to add migrations container and run migrations on startup. Please remember if you add new migrations, you would need to delete container and `movies.db.migrations` image to add new migration files in the container.
-```yaml
-  movies.db.migrations:
-    depends_on:
-      - movies.db
-    image: movies.db.migrations
-    build:
-      context: ./db/
-      dockerfile: Dockerfile
-    command: '"server=movies.db;database=defaultdb;uid=root;password=Password123;SslMode=None;"'
-```
-
-Open a terminal at the root of the solution where docker-compose file is location and execute following command to start database server and apply migrations to create schema and `movies` table.
-```shell
-docker-compose -f docker-compose.dev-env.yml up -d
-```
-
-## MySql Movies Store
-I will be using [Dapper](https://github.com/DapperLib/Dapper) - a simple object mapper for .Net along with [MySqlConnector](https://mysqlconnector.net/).
+## Test Project
+Let's start by adding a new test project.
+* Right click on Solution name -> Add -> New Project -> Tests -> xUnit Test Project
+<figure>
+  <a href="images/001-new-project.png"><img src="images/001-new-project.png"></a>
+  <figcaption>New xUnit Test Project</figcaption>
+</figure>
+* Select Target Framework, I have selected `.NET 7.0` as we are targeting `.NET 7.0` in this sample
+* Name your test project, I like to name as Project I am testing followed by `.Tests` and followed by test types `.Integration`
+<figure>
+  <a href="images/002-name-project.png"><img src="images/002-name-project.png"></a>
+  <figcaption>Name Test Project</figcaption>
+</figure>
+* Click create to finish creating test project.
 
 ### Setup
-* Lets start by adding nuget packages
-```shell
-dotnet add package MySqlConnector --version 2.2.6
-dotnet add package Dapper --version 2.0.123
+Start by adding nuget reference to our project `Movies.Api` in `Movies.Api.Tests.Integration` project and following nuget packages
 ```
-* Update `IMovieStore` and make all methods `async`.
-* Update `Controller` to make methods `async` and `await` calls to store methods
-* Update `InMemoryMoviesStore` to make methods `async`
+dotnet add pacakge AutoFixture.Xunit2 --version 4.18.0
+dotnet add pacakge FluentAssertions --version 6.11.0
+dotnet add package Dapper.Contrib --version 2.0.78
+```
 
-### SqlHelper
-I have added a helper class under `Store` folder named `SqlHelper`. It loads embedded resources under the `Sql` folder with extension `.sql` where the class containing the instance of thhe helper is. Reason for this is I like to have each `SQL` query in its own file. Feel free to put the query directly in the methods.
+In order to test funcationality provided by `MySqlMoviesStore` we would need a way to access database without going through our store. This is to ensure that e.g. `Create` funcationlity works independent of `GetById` of the store. To accomplish that I would add a couple of helper classes under `Helper` folder.
 
-### Class and Constructor
-Add a new folder under `Store`, I named it as `MySql` and add a file named `MySqlMoviesStore.cs`. This class would accept an `IConfiguration` as parameter that we would use to load MySql connection string from .NET configuration. We would initialize `connectionString` and `sqlHelper` member variables in constructor.
+#### DatabaseHelper.cs
 ```csharp
-public MySqlMoviesStore(IConfiguration configuration)
+using System.Data;
+using Dapper;
+using Dapper.Contrib.Extensions;
+using MySqlConnector;
+
+namespace Movies.Api.Tests.Integration.Helpers;
+
+public class DatabaseHelper<TId, TRecord>
+    where TRecord : class
+    where TId : notnull
 {
-    var connectionString = configuration.GetConnectionString("MoviesDb");
-    if (connectionString == null)
+    protected readonly string connectionString;
+	private readonly string tableName;
+	private readonly string idColumnName;
+    protected readonly Func<TRecord, TId> idSelector;
+
+    public DatabaseHelper(
+        string connectionString,
+        string tableName,
+        Func<TRecord, TId> idSelector,
+        string idColumnName = "Id")
+	{
+        this.connectionString = connectionString;
+		this.tableName = tableName;
+		this.idColumnName = idColumnName;
+		this.idSelector = idSelector;
+	}
+
+    public Dictionary<TId, TRecord> AddedRecords { get; } = new Dictionary<TId, TRecord>();
+
+    public virtual async Task<TRecord> GetRecordAsync(TId id)
     {
-        throw new InvalidOperationException("Missing [MoviesDb] connection string.");
+        await using var connection = new MySqlConnection(connectionString);
+        return await connection.QueryFirstOrDefaultAsync<TRecord>(
+            $"SELECT * FROM {tableName} WHERE {idColumnName} = @Id",
+            new { Id = id },
+            commandType: CommandType.Text);
     }
 
-    this.connectionString = connectionString;
-    sqlHelper = new SqlHelper<MySqlMoviesStore>();
+    public virtual async Task AddRecordAsync(TRecord record)
+    {
+        this.AddedRecords.Add(idSelector(record), record);
+        await using var connection = new MySqlConnection(connectionString);
+        await connection.InsertAsync<TRecord>(record);
+    }
+
+    public async Task AddRecordsAsync(IEnumerable<TRecord> records)
+    {
+        foreach (var record in records)
+        {
+            await AddRecordAsync(record);
+        }
+    }
+
+    public void TrackId(TId id) => AddedRecords.Add(id, default!);
+
+    public virtual async Task DeleteRecordAsync(TId id)
+    {
+        await using var connection = new MySqlConnection(connectionString);
+        await connection.ExecuteAsync(
+            $"DELETE FROM {tableName} WHERE {idColumnName} = @Id",
+            new { Id = id },
+            commandType: CommandType.Text);
+    }
+
+    public async Task CleanTableAsync()
+    {
+        foreach (var addedRecord in AddedRecords)
+        {
+            await DeleteRecordAsync(addedRecord.Key);
+        }
+    }
 }
 ```
-
-I have specified this in `appsettings.json` configuration file. This is acceptable for development but NEVER put a production/stagging connection string in a configuration file. This can be put in secure vault e.g. AWS Parameter Store or Azure KeyVault and can be accessed from the application. CD pipeline can also be configured to load this value from a secure location and set as an environment variable for the container running the application.
-
-### Create
-We create a new instance of `MySqlConnection`, setup parameters for create and execute the query using `Dapper` to insert a new record, we are handling a `NpgsqlException` and throw our custom `DuplicateKeyException` if `ErrorCode` of exception is `DuplicateKeyEntry`.
-Create function looks like
+#### MoviesDatabaseHelper.cs
 ```csharp
-public async Task Create(CreateMovieParams createMovieParams)
+using System.Data;
+using Dapper;
+using Movies.Api.Store;
+using MySqlConnector;
+
+namespace Movies.Api.Tests.Integration.Helpers;
+
+public class MoviesDatabaseHelper : DatabaseHelper<Guid, Movie>
 {
-    await using var connection = new MySqlConnection(this.connectionString);
+	public MoviesDatabaseHelper(string connectionString)
+		: base(connectionString, "Movies", x => x.Id, "Id")
+    { }
+
+    public async override Task AddRecordAsync(Movie record)
     {
+        this.AddedRecords.Add(idSelector(record), record);
+
         var parameters = new
         {
-            createMovieParams.Id,
-            createMovieParams.Title,
-            createMovieParams.Director,
-            createMovieParams.ReleaseDate,
-            createMovieParams.TicketPrice,
+            record.Id,
+            record.Title,
+            record.Director,
+            record.ReleaseDate,
+            record.TicketPrice,
             CreatedAt = DateTime.UtcNow,
             UpdatedAt = DateTime.UtcNow,
         };
 
-        try
-        {
-            await connection.ExecuteAsync(
-                this.sqlHelper.GetSqlFromEmbeddedResource("Create"),
-                parameters,
-                commandType: CommandType.Text);
-        }
-        catch (MySqlException ex)
-        {
-            if (ex.ErrorCode == MySqlErrorCode.DuplicateKeyEntry)
-            {
-                throw new DuplicateKeyException();
-            }
+        var query = @"
+            INSERT INTO Movies(
+                Id,
+                Title,
+                Director,
+                ReleaseDate,
+                TicketPrice,
+                CreatedAt,
+                UpdatedAt
+            )
+            VALUES (
+                @Id,
+                @Title,
+                @Director,
+                @ReleaseDate,
+                @TicketPrice,
+                @CreatedAt,
+                @UpdatedAt
+            )";
 
-            throw;
-        }
+        await using var connection = new MySqlConnection(connectionString);
+        await connection.ExecuteAsync(query, parameters, commandType: CommandType.Text);
     }
-}
-```
-And corresponding sql query from `Create.sql` file
-```sql
-INSERT INTO Movies(
-    Id,
-    Title,
-    Director,
-    ReleaseDate,
-    TicketPrice,
-    CreatedAt,
-    UpdatedAt
-)
-VALUES (
-    @Id,
-    @Title,
-    @Director,
-    @ReleaseDate,
-    @TicketPrice,
-    @CreatedAt,
-    @UpdatedAt
-)
-```
 
-Please note the column names and parameter names should match casing as defined in database `up` scripts.
-
-### GetAll
-We create a new instance of `MySqlConnection`, use `Dapper` to execute query, dapper would map the columns to properties.
-```csharp
-public async Task<IEnumerable<Movie>> GetAll()
-{
-    await using var connection = new MySqlConnection(this.connectionString);
-    return await connection.QueryAsync<Movie>(
-        sqlHelper.GetSqlFromEmbeddedResource("GetAll"),
-        commandType: CommandType.Text
-        );
-}
-```
-And corresponding sql query from `GetAll.sql` file
-```sql
-SELECT
-    Id,
-    Title,
-    Director,
-    TicketPrice,
-    ReleaseDate,
-    CreatedAt,
-    UpdatedAt
-FROM Movies
-```
-
-### GetById
-We create a new instance of `MySqlConnection`, use `Dapper` to execute query by passing the id, dapper would map the columns to properties.
-```csharp
-public async Task<Movie?> GetById(Guid id)
-{
-    await using var connection = new MySqlConnection(this.connectionString);
-    return await connection.QueryFirstOrDefaultAsync<Movie?>(
-        sqlHelper.GetSqlFromEmbeddedResource("GetById"),
-        new { id },
-        commandType: System.Data.CommandType.Text
-        );
-}
-```
-And coresponding sql from `GetById.sql` file
-```sql
-SELECT
-    Id,
-    Title,
-    Director,
-    TicketPrice,
-    ReleaseDate,
-    CreatedAt,
-    UpdatedAt
-FROM Movies
-WHERE Id = @Id
-```
-
-### Update
-We create a new instance of `MySqlConnection`, setup parameters for query and execute the query using `Dapper` to update an existing record.
-
-Update function looks like
-```csharp
-public async Task Update(Guid id, UpdateMovieParams updateMovieParams)
-{
-    await using var connection = new MySqlConnection(this.connectionString);
+    public async override Task<Movie> GetRecordAsync(Guid id)
     {
-        var parameters = new
-        {
-            Id = id,
-            updateMovieParams.Title,
-            updateMovieParams.Director,
-            updateMovieParams.ReleaseDate,
-            updateMovieParams.TicketPrice,
-            UpdatedAt = DateTime.UtcNow,
-        };
-
-        await connection.ExecuteAsync(
-            this.sqlHelper.GetSqlFromEmbeddedResource("Update"),
-            parameters,
+        await using var connection = new MySqlConnection(connectionString);
+        return await connection.QueryFirstOrDefaultAsync<Movie>(
+            $"SELECT Id, Title, Director, TicketPrice, ReleaseDate, CreatedAt, UpdatedAt FROM Movies WHERE Id = @Id",
+            new { Id = id },
             commandType: CommandType.Text);
     }
 }
 ```
-And corresponding sql query from `Update.sql` file
-```sql
-UPDATE Movies
-SET
-    Title = @Title,
-    Director = @Director,
-    ReleaseDate = @ReleaseDate,
-    TicketPrice = @TicketPrice,
-    UpdatedAt = @UpdatedAt
-WHERE id = @id
-```
-
-### Delete
-We create a new instance of `MySqlConnection`, use `Dapper` to execute query by passing the id.
+Next add a `DatabaseFixture` class to pass shared database context between test classes testing database, in our case it is `ConnectionString` that we would initialise in `InitializeAsync` method.
 ```csharp
-public async Task Delete(Guid id)
+namespace Movies.Api.Tests.Integration;
+
+public class DatabaseFixture : IAsyncLifetime
 {
-    await using var connection = new MySqlConnection(this.connectionString);
-    await connection.ExecuteAsync(
-        sqlHelper.GetSqlFromEmbeddedResource("Delete"),
-        new { id },
-        commandType: CommandType.Text
-        );
+    public string ConnectionString { get; private set; } = default!;
+
+    public async Task InitializeAsync()
+    {
+        this.ConnectionString = "server=localhost;database=Movies;uid=root;password=Password123;SslMode=None;";
+        await Task.CompletedTask;
+    }
+
+    public async Task DisposeAsync()
+    {
+        await Task.CompletedTask;
+    }
 }
 ```
-And corresponding sql query from `Delete.sql` file
-```sql
-DELETE
-FROM Movies
-WHERE Id = @Id
-```
-
-Please note we don't throw `RecordNotFoundException` exception as we were doing in `InMemoryMoviesStore`, reason for that is trying to delete a record with a non existent key is not considered an error in Postgres.
-
-## Setup Dependency Injection
-Final step is to setup the Dependency Injection container to wireup the new created store. Update `Program.cs` as shown below
+Next add a `DatabaseCollection.cs` file, this is so that we can pass the same `DatabaseContext` to multiple files.  This is here as an example as we only have a single class to test.
 ```csharp
-// builder.Services.AddSingleton<IMoviesStore, InMemoryMoviesStore>();
-builder.Services.AddScoped<IMoviesStore, MySqlMoviesStore>();
+namespace Movies.Api.Tests.Integration;
+
+[CollectionDefinition("DatabaseCollection")]
+public class DatabaseCollection : ICollectionFixture<DatabaseFixture>
+{
+    // This class has no code, and is never created. Its purpose is simply
+    // to be the place to apply [CollectionDefinition] and all the
+    // ICollectionFixture<> interfaces.
+}
+```
+Let's also delete default `UnitTest1.cs` file.
+
+### MySqlMoviesStoreTests
+I like to mirror the structure in the source project but please feel free to place your test file where you like. I will add a `Store` and under that a `MySql` folder and then create `MySqlMoviesStoreTests.cs` file.
+
+I will start by adding an instance of `moviesDatabaseHelper` and `sut` (system under test). In constructor, `moviesDatabaseHelper` is initialised using `ConnectionString` from `DatabaseFixture` then initialised an in memory configuration object and passed that to `MySqlMoviesStore`.
+
+I am calling `CleanTableAsync` in `DisposeAsync` method that will run after each test to cleanup any data inserted by the test.
+
+#### MySqlMoviesStoreTests.cs
+```csharp
+using AutoFixture.Xunit2;
+using FluentAssertions;
+using Microsoft.Extensions.Configuration;
+using Movies.Api.Store;
+using Movies.Api.Store.MySql;
+using Movies.Api.Tests.Integration.Helpers;
+
+namespace Movies.Api.Tests.Integration.Store.MySql;
+
+[Collection("DatabaseCollection")]
+public class MySqlMoviesStoreTests : IAsyncLifetime
+{
+    private readonly MoviesDatabaseHelper moviesDatabaseHelper;
+
+    private readonly MySqlMoviesStore sut;
+
+    public MySqlMoviesStoreTests(DatabaseFixture databaseFixture)
+	{
+        moviesDatabaseHelper = new MoviesDatabaseHelper(databaseFixture.ConnectionString);
+
+        var myConfiguration = new Dictionary<string, string?>
+        {
+            {"ConnectionStrings:MoviesDb", databaseFixture.ConnectionString},
+        };
+
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(myConfiguration)
+            .Build();
+
+        sut = new MySqlMoviesStore(configuration);
+	}
+
+    public Task InitializeAsync() => Task.CompletedTask;
+
+    public async Task DisposeAsync()
+    {
+        await moviesDatabaseHelper.CleanTableAsync();
+    }
+}
 ```
 
-For simplicity I have disabled `InMemoryMoviesStore`, we can add a configuration and based on that decide which service to use at runtime. That can be a good exercise however we don't do that practically. However for traffic heavy services InMemory or Distributed Cache is used to cache results to improve performance.
+### GetById Tests
+Time to add tests. Please note to run these test first we would need to start our database server and apply the migrations. Lets go ahead and do that before adding our test.
+```shell
+docker-compose -f docker-compose.dev-env.yml up -d
+```
 
-## Test
-I am not adding any unit or integration tests for this tutorial, perhaps a following tutorial. But all the endpoints can be tested either by the Swagger UI by running the application or using Postman.
+Our first test is very easy, I like to name my tests as `MethodName_GivenCondition_ShouldExpectedResult` to follow the pattern, I have added `GetById_GivenRecordDoesNotExist_ShouldReturnNull` and I am going to leavarage excellent [AutoFixture](https://github.com/AutoFixture/AutoFixture) to get a new Guid as parameter. For this test we don't need arrange part, we would skip to the act and then assert. For Assertion I am going to use [FluentAssertions](https://fluentassertions.com/). For this test we need to assert the returned result is null.
+```csharp
+[Theory]
+[AutoData]
+public async void GetById_GivenRecordDoesNotExist_ShouldReturnNull(Guid id)
+{
+    // Arrange
+
+    // Act
+    var result = await sut.GetById(id);
+
+    // Assert
+    result.Should().BeNull();
+}
+```
+Go ahead and run the test, it should be green.
+
+Let's add our second test `GetById_GivenRecordExists_ShouldReturnRecord`, in this test we would first insert a new record using the helper we added earlier. In assertion step we would compare the result with instance passed by `AutoFixture` excluding `CreatedAt` and `UpdatedAt` properties as we know these would be set to current time when inserting. Instead we would test those are set to within 1 second of current time. I have also excluded `ReleasedAt` property and will match it within 1 second of passed value, in my opinion this is acceptable as this time being within 1 second of inserted time is accurate enough for this use case, however if more accuracy is needed we would look for an appropriate column type that provides that accuracy. Newly inserted record will be cleared after the test from `DisposeAsync` method.
+```csharp
+[Theory]
+[AutoData]
+public async void GetById_GivenRecordExists_ShouldReturnRecord(Movie movie)
+{
+    // Arrange
+    await moviesDatabaseHelper.AddRecordAsync(movie);
+
+    // Act
+    var result = await sut.GetById(movie.Id);
+
+    // Assert
+    result.Should().NotBeNull();
+    result.Should().BeEquivalentTo(
+        movie,
+        x => x.Excluding(p => p.ReleaseDate).Excluding(p => p.CreatedAt).Excluding(p => p.UpdatedAt));
+    result.ReleaseDate.Should().BeCloseTo(movie.ReleaseDate, TimeSpan.FromSeconds(1));
+    result.CreatedAt.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(1));
+    result.UpdatedAt.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(1));
+}
+```
+
+### GetAll Tests
+First test is easy, we would just test if there are no records, `GetAll` return an empty collection.
+```csharp
+[Fact]
+public async void GetAll_GivenNoRecords_ShouldReturnEmptyCollection()
+{
+    // Arrange
+    // Act
+    var result = await this.sut.GetAll();
+
+    // Assert
+    result.Should().BeEmpty();
+}
+```
+
+Next test is to insert some records and executing `GetAll` and comparing the results. I have chosen not to assert the `DateTime` field values as we are doing that in `GetById` but those should be asserted if this method is in a separate class e.g. if we choose to have separate Command and Query classes.
+```csharp
+[Theory]
+[AutoData]
+public async void GetAll_GivenRecordsExist_ShouldReturnCollection(List<Movie> movies)
+{
+    // Arrange
+    await moviesDatabaseHelper.AddRecordsAsync(movies);
+
+    // Act
+    var result = await this.sut.GetAll();
+
+    // Assert
+    result.Should().BeEquivalentTo(movies, x => x.Excluding(p => p.ReleaseDate).Excluding(p => p.CreatedAt).Excluding(p => p.UpdatedAt));
+}
+```
+
+### Create Tests
+First test for `Create` is straight forward, its going to call `Create` to create a record and then load that record using `moviesDatabaseHelper` and compare it with passed parameter.
+```csharp
+[Theory]
+[AutoData]
+public async void Create_GivenRecordDoesNotExist_ShouldCreateRecord(CreateMovieParams createMovieParams)
+{
+    // Arrange
+    // Act
+    await sut.Create(createMovieParams);
+    moviesDatabaseHelper.TrackId(createMovieParams.Id);
+
+    // Assert
+    var createdMovie = await moviesDatabaseHelper.GetRecordAsync(createMovieParams.Id);
+
+    createdMovie.Should().BeEquivalentTo(createMovieParams, x => x.Excluding(p => p.ReleaseDate));
+    createdMovie.ReleaseDate.Should().BeCloseTo(createMovieParams.ReleaseDate, TimeSpan.FromSeconds(1));
+    createdMovie.CreatedAt.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(1));
+    createdMovie.UpdatedAt.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(1));
+}
+```
+2nd test is to check if the method thorws an exeption if the id already exists. We will use `moviesDatabaseHelper` to add a new record first and then try to create a new record.
+```csharp
+[Theory]
+[AutoData]
+public async void Create_GivenRecordWithIdExists_ShouldThrowDuplicateKeyException(Movie movie)
+{
+    // Arrange
+    await moviesDatabaseHelper.AddRecordAsync(movie);
+
+    var createMovieParams = new CreateMovieParams(movie.Id, movie.Title, movie.Director, movie.TicketPrice, movie.ReleaseDate);
+
+    // Act & Assert
+    await Assert.ThrowsAsync<DuplicateKeyException>(async () => await sut.Create(createMovieParams));
+}
+```
+
+### Update Tests
+To test update, first we will create a record and then call the `Update` method of store to update the record. After updating we will use the `moviesDatabaseHelper` to load the saved record and verify if the saved record has expected values.
+```csharp
+[Theory]
+[AutoData]
+public async void Update_GivenRecordExists_ShouldUpdateRecord(Movie movie, UpdateMovieParams updateMovieParams)
+{
+    // Arrange
+    await moviesDatabaseHelper.AddRecordAsync(movie);
+
+    // Act
+    await sut.Update(movie.Id, updateMovieParams);
+
+    // Assert
+    var saved = await moviesDatabaseHelper.GetRecordAsync(movie.Id);
+
+    saved.Should().BeEquivalentTo(updateMovieParams, x => x.Excluding(p => p.ReleaseDate));
+    saved.ReleaseDate.Should().BeCloseTo(updateMovieParams.ReleaseDate, TimeSpan.FromSeconds(1));
+    saved.UpdatedAt.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(1));
+}
+```
+
+### Delete Tests
+To test delete, first we will add a new record using `moviesDatabaseHelper`, then call `Delete` method on store. To verify we will load the record and then assert the loaded values is `null`.
+```csharp
+[Theory]
+[AutoData]
+public async void Delete_GivenRecordExists_ShouldDeleteRecord(Movie movie)
+{
+    // Arrange
+    await moviesDatabaseHelper.AddRecordAsync(movie);
+
+    // Act
+    await sut.Delete(movie.Id);
+
+    // Assert
+    var loaded = await moviesDatabaseHelper.GetRecordAsync(movie.Id);
+    loaded.Should().BeNull();
+}
+```
+
+This concludes the integration tests. Running these tests does need we start the databaes server prior to running the tests and run the migrations before running the tests. If the database is not running then the tests would not run.
+
+## Integration Tests in CI
+I am also adding 2 [GitHub Actions](https://github.com/features/actions) workflows to run these integration tests as part of the CI.
+
+### Workflow with setting up MySQL using GitHub Service Containers
+In this workflow we would make use of the 
+### Workflow with setting up MySQL using docker-compose
+
 
 ## References
-In no particular order
-* [REST API with ASP.NET Core 7 and InMemory Store](https://kashifsoofi.github.io/aspnetcore/rest/restapi-with-asp.net-core-7-and-inmemory-store/)
+In no particular order  
+* [REST API with ASP.NET Core 7 and MySql](https://kashifsoofi.github.io/aspnetcore/rest/postgres/restapi-with-asp.net-core-7-and-mysql/)
 * [MySQL Database](https://www.mysql.com/)
-* [roundhouse](https://github.com/chucknorris/roundhouse)
-* [dotnet-script](https://github.com/dotnet-script/dotnet-script)
+* [Integration Testing](https://en.wikipedia.org/wiki/Integration_testing)
 * [Dapper](https://github.com/DapperLib/Dapper)
 * [MySqlConnector](https://mysqlconnector.net/)
+* [AutoFixture](https://github.com/AutoFixture/AutoFixture)
+* [FluentAssertions](https://fluentassertions.com/)
+* [Docker](https://www.docker.com/)
+* [GitHub Actions](https://github.com/features/actions)
+* [About service containers](https://docs.github.com/en/actions/using-containerized-services/about-service-containers)
+* [Building and testing .NET](https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-net)
 * And many more
