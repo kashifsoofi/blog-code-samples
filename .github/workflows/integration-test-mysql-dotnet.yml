@@ -1,0 +1,45 @@
+name: Integration Test MySQL (.NET)
+
+on:
+  push:
+    branches: [ "main" ]
+    paths:
+     - 'integration-test-mysql-dotnet/**'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: integration-test-mysql-dotnet
+
+    services:
+      movies.db.test:
+        image: mysql:5.7
+        env:
+          MYSQL_DATABASE: defaultdb
+          MYSQL_ROOT_PASSWORD: Password123
+        options: >-
+          --health-cmd="mysqladmin ping"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=3
+        ports:
+          - 3306:3306
+
+    steps:
+      - uses: actions/checkout@v3
+      - name: Setup .NET Core SDK
+        uses: actions/setup-dotnet@v3
+        with:
+          dotnet-version: 7.0.x
+      - name: Install dependencies
+        run: dotnet restore
+      - name: Build
+        run: dotnet build --configuration Release --no-restore
+      - name: Build migratinos Docker image
+        run: docker build --file ./db/Dockerfile -t movies.db.migrations ./db
+      - name: Run migrations
+        run: docker run --add-host=host.docker.internal:host-gateway movies.db.migrations "Host=host.docker.internal;database=defaultdb;uid=root;password=Password123;SslMode=None;"
+      - name: Run integration tests
+        run: dotnet test --configuration Release --no-restore --no-build --verbosity normal

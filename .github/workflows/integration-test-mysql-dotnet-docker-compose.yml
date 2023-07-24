@@ -1,20 +1,22 @@
-name: Integration Test Postgres (testcontainers-dotnet)
+name: Integration Test MySQL (.NET) with docker-compose
 
 on:
   push:
     branches: [ "main" ]
     paths:
-     - 'integration-test-postgres-with-testcontainers-dotnet/**'
-    
+     - 'integration-test-mysql-dotnet/**'
+
 jobs:
   build:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: integration-test-postgres-with-testcontainers-dotnet
+        working-directory: integration-test-mysql-dotnet
 
     steps:
       - uses: actions/checkout@v3
+      - name: Start container and apply migrations
+        run: docker compose -f "docker-compose.dev-env.yml" up -d --build
       - name: Setup .NET Core SDK
         uses: actions/setup-dotnet@v3
         with:
@@ -25,3 +27,5 @@ jobs:
         run: dotnet build --configuration Release --no-restore        
       - name: Run integration tests
         run: dotnet test --configuration Release --no-restore --no-build --verbosity normal
+      - name: Stop containers
+        run: docker compose -f "docker-compose.dev-env.yml" down --remove-orphans --rmi all --volumes

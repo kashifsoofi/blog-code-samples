@@ -1,0 +1,24 @@
+version: '3.7'
+
+services:
+  movies.db:
+    image: mysql:5.7
+    environment:
+      - MYSQL_DATABASE=defaultdb
+      - MYSQL_ROOT_PASSWORD=Password123
+    volumes:
+      - moviesdbdata:/var/lib/mysql
+    ports:
+      - "3306:3306"
+
+  movies.db.migrations:
+    depends_on:
+      - movies.db
+    image: movies.db.migrations
+    build:
+      context: ./db/
+      dockerfile: Dockerfile
+    command: '"server=movies.db;database=defaultdb;uid=root;password=Password123;SslMode=None;"'
+
+volumes:
+  moviesdbdata:
