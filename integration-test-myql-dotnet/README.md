@@ -423,9 +423,98 @@ This concludes the integration tests. Running these tests does need we start the
 I am also adding 2 [GitHub Actions](https://github.com/features/actions) workflows to run these integration tests as part of the CI.
 
 ### Workflow with setting up MySQL using GitHub Service Containers
-In this workflow we would make use of the 
-### Workflow with setting up MySQL using docker-compose
+In this workflow we would make use of the [GitHub service containers](https://docs.github.com/en/actions/using-containerized-services/about-service-containers) to start a MySQL server. We will build migrations container and run it as part of the build process to apply migrations before running integration tests. Here is the full listing.
+```yaml
+name: Integration Test MySQL (.NET)
 
+on:
+  push:
+  pull_request:
+    branches: [ "main" ]
+    paths:
+     - 'integration-test-mysql-dotnet/**'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: integration-test-mysql-dotnet
+
+    services:
+      movies.db.test:
+        image: mysql:5.7
+        env:
+          - MYSQL_DATABASE=defaultdb
+          - MYSQL_ROOT_PASSWORD=Password123
+        options: >-
+          --health-cmd="mysqladmin ping"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=3
+        ports:
+          - 3306:3306
+
+    steps:
+      - uses: actions/checkout@v3
+      - name: Setup .NET Core SDK
+        uses: actions/setup-dotnet@v3
+        with:
+          dotnet-version: 7.0.x
+      - name: Install dependencies
+        run: dotnet restore
+      - name: Build
+        run: dotnet build --configuration Release --no-restore
+      - name: Build migratinos Docker image
+        run: docker build --file ./db/Dockerfile -t movies.db.migrations ./db
+      - name: Run migrations
+        run: docker run --add-host=host.docker.internal:host-gateway movies.db.migrations "Host=host.docker.internal;database=defaultdb;uid=root;password=Password123;SslMode=None;"
+      - name: Run integration tests
+        run: dotnet test --configuration Release --no-restore --no-build --verbosity normal
+```
+
+### Workflow with setting up MySQL using docker-compose
+In this workflow we will use the `docker-compose.dev-env.yml` to start MySQL and apply migrations as a first step of the workflow after checking out the code. Here is the full listing.
+```yaml
+name: Integration Test MySQL (.NET) with docker-compose
+
+on:
+  push:
+  pull_request:
+    branches: [ "main" ]
+    paths:
+     - 'integration-test-mysql-dotnet/**'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: integration-test-mysql-dotnet
+
+    steps:
+      - uses: actions/checkout@v3
+      - name: Start container and apply migrations
+        run: docker compose -f "docker-compose.dev-env.yml" up -d --build
+      - name: Setup .NET Core SDK
+        uses: actions/setup-dotnet@v3
+        with:
+          dotnet-version: 7.0.x
+      - name: Install dependencies
+        run: dotnet restore
+      - name: Build
+        run: dotnet build --configuration Release --no-restore        
+      - name: Run integration tests
+        run: dotnet test --configuration Release --no-restore --no-build --verbosity normal
+      - name: Stop containers
+        run: docker compose -f "docker-compose.dev-env.yml" down --remove-orphans --rmi all --volumes
+```
+## Source
+Source code for the demo application is hosted on GitHub in [blog-code-samples](https://github.com/kashifsoofi/blog-code-samples/tree/main/integration-test-postgres-with-testcontainers-dotnet) repository.
+
+Source for `Integration Test MySQL (.NET)` workflow is in [integration-test-mysql-dotnet.yml](https://github.com/kashifsoofi/blog-code-samples/blob/main/.github/workflows/integration-test-mysql-dotnet.yml).
+
+Source for `Integration Test MySQL (.NET) with docker-compose` workflow is in [integration-test-mysql-dotnet-docker-compose.yml](https://github.com/kashifsoofi/blog-code-samples/blob/main/.github/workflows/integration-test-mysql-dotnet-docker-compose.yml).
 
 ## References
 In no particular order  
