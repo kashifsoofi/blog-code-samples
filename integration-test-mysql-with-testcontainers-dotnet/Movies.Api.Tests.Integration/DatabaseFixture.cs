@@ -36,15 +36,7 @@ public class DatabaseFixture : IAsyncLifetime
             return;
         }
 
-        try
-        {
-            await this.databaseContainer!.StartAsync();
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine(ex);
-            throw;
-        }
+        await this.databaseContainer!.StartAsync();
 
         this.migrationsContainer = new ContainerBuilder<MigrationsContainer>()
             .ConfigureContainer((context, container) =>
