@@ -28,7 +28,6 @@ public class DatabaseFixture : IAsyncLifetime
         }
     }
 
-
     public async Task InitializeAsync()
     {
         if (this.useServiceDatabase)
@@ -37,7 +36,15 @@ public class DatabaseFixture : IAsyncLifetime
             return;
         }
 
-        await this.databaseContainer!.StartAsync();
+        try
+        {
+            await this.databaseContainer!.StartAsync();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine(ex);
+            throw;
+        }
 
         this.migrationsContainer = new ContainerBuilder<MigrationsContainer>()
             .ConfigureContainer((context, container) =>
