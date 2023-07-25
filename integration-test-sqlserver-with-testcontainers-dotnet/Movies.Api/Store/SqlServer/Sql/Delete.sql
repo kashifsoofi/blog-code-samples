@@ -1,0 +1,3 @@
+DELETE
+FROM Movies
+WHERE Id = @Id
