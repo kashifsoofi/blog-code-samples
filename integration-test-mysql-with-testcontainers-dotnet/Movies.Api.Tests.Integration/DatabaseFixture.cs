@@ -21,8 +21,7 @@ public class DatabaseFixture : IAsyncLifetime
         if (!this.useServiceDatabase)
         {
             Environment.SetEnvironmentVariable("REAPER_DISABLED", true.ToString());
-            this.databaseContainer = new ContainerBuilder<MySqlContainer>()
-                .ConfigureDockerImageName($"{MySqlContainer.DefaultImage}:5.7")
+            this.databaseContainer = new ContainerBuilder<MySql57Container>()
                 .ConfigureDatabaseConfiguration("root", "Password123", "defaultdb")
                 .Build();
         }
