@@ -23,6 +23,7 @@
     <PackageReference Include="AutoFixture.Xunit2" Version="4.18.0" />
     <PackageReference Include="FluentAssertions" Version="6.11.0" />
     <PackageReference Include="Dapper.Contrib" Version="2.0.78" />
+    <PackageReference Include="TestContainers.Container.Database.MySql" Version="1.5.4" />
   </ItemGroup>
 
   <ItemGroup>
