@@ -1,0 +1,41 @@
+name: Integration Test SQL Server (.NET)
+
+on:
+  push:
+    branches: [ "main" ]
+    paths:
+     - 'integration-test-sqlserver-dotnet/**'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: integration-test-sqlserver-dotnet
+
+    services:
+      movies.db.test:
+        image: mcr.microsoft.com/mssql/server:2022-latest
+        env:
+          ACCEPT_EULA: Y
+          MSSQL_SA_PASSWORD: Password123
+          MSSQL_PID: Express
+        ports:
+          - 1433:1433
+
+    steps:
+      - uses: actions/checkout@v3
+      - name: Setup .NET Core SDK
+        uses: actions/setup-dotnet@v3
+        with:
+          dotnet-version: 7.0.x
+      - name: Install dependencies
+        run: dotnet restore
+      - name: Build
+        run: dotnet build --configuration Release --no-restore
+      - name: Build migratinos Docker image
+        run: docker build --file ./db/Dockerfile -t movies.db.migrations ./db
+      - name: Run migrations
+        run: docker run --add-host=host.docker.internal:host-gateway movies.db.migrations "Server=host.docker.internal;Database=Movies;User ID=sa;Password=Password123;Encrypt=False"
+      - name: Run integration tests
+        run: dotnet test --configuration Release --no-restore --no-build --verbosity normal

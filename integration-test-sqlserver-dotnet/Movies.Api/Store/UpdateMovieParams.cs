@@ -5,13 +5,13 @@ public class UpdateMovieParams
     public string Title { get; }
     public string Director { get; }
     public decimal TicketPrice { get; }
-    public DateTime ReleaseDate { get; }
+    public DateTimeOffset ReleaseDate { get; }
 
     public UpdateMovieParams(
         string title,
         string director,
         decimal ticketPrice,
-        DateTime releaseDate
+        DateTimeOffset releaseDate
         )
     {
         Title = title;

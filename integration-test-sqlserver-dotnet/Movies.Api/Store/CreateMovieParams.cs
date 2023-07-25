@@ -6,14 +6,14 @@ public class CreateMovieParams
     public string Title { get; }
     public string Director { get; }
     public decimal TicketPrice { get; }
-    public DateTime ReleaseDate { get; }
+    public DateTimeOffset ReleaseDate { get; }
 
     public CreateMovieParams(
         Guid id,
         string title,
         string director,
         decimal ticketPrice,
-        DateTime releaseDate
+        DateTimeOffset releaseDate
         )
     {
         Id = id;
