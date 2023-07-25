@@ -23,7 +23,7 @@ namespace Movies.Api.Tests.Integration
             await base.ConfigureAsync();
 
             var adoNetSqlProbeStrategy = new AdoNetSqlProbeStrategy(DbProviderFactory);
-            adoNetSqlProbeStrategy.Timeout = TimeSpan.FromMinutes(2);
+            adoNetSqlProbeStrategy.Timeout = TimeSpan.FromMinutes(5);
             WaitStrategy = adoNetSqlProbeStrategy;
         }
     }
