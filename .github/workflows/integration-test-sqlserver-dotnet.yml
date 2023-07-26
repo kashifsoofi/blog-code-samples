@@ -36,6 +36,6 @@ jobs:
       - name: Build migratinos Docker image
         run: docker build --file ./db/Dockerfile -t movies.db.migrations ./db
       - name: Run migrations
-        run: docker run --add-host=host.docker.internal:host-gateway movies.db.migrations "Server=host.docker.internal;Database=Movies;User ID=sa;Password=Password123;Encrypt=False"
+        run: docker run --add-host=host.docker.internal:host-gateway movies.db.migrations "Server=host.docker.internal;Database=master;User ID=sa;Password=Password123;Encrypt=False"
       - name: Run integration tests
         run: dotnet test --configuration Release --no-restore --no-build --verbosity normal
