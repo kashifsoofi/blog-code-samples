@@ -1,0 +1,27 @@
+name: Integration Test SQL Server (testcontainers-dotnet)
+
+on:
+  push:
+    branches: [ "main" ]
+    paths:
+     - 'integration-test-sqlserver-with-testcontainers-dotnet/**'
+    
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: integration-test-sqlserver-with-testcontainers-dotnet
+
+    steps:
+      - uses: actions/checkout@v3
+      - name: Setup .NET Core SDK
+        uses: actions/setup-dotnet@v3
+        with:
+          dotnet-version: 7.0.x
+      - name: Install dependencies
+        run: dotnet restore
+      - name: Build
+        run: dotnet build --configuration Release --no-restore        
+      - name: Run integration tests
+        run: dotnet test --configuration Release --no-restore --no-build --verbosity normal

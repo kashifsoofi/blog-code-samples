@@ -1,0 +1,25 @@
+version: '3.7'
+
+services:
+  movies.db:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    environment:
+      - ACCEPT_EULA=Y
+      - MSSQL_SA_PASSWORD=Password123
+      - MSSQL_PID=Express
+    volumes:
+      - moviesdbdata:/var/opt/mssql
+    ports:
+      - "1433:1433"
+
+  movies.db.migrations:
+    depends_on:
+      - movies.db
+    image: movies.db.migrations
+    build:
+      context: ./db/
+      dockerfile: Dockerfile
+    command: '"Server=movies.db;Database=master;User ID=sa;Password=Password123;"'
+
+volumes:
+  moviesdbdata:
