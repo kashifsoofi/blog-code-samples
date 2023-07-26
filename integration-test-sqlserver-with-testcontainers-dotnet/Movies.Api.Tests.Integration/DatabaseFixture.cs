@@ -23,7 +23,7 @@ public class DatabaseFixture : IAsyncLifetime
             Environment.SetEnvironmentVariable("REAPER_DISABLED", true.ToString());
             this.databaseContainer = new ContainerBuilder<MsSqlContainer>()
                 .ConfigureDockerImageName("mcr.microsoft.com/mssql/server:2022-latest")
-                .ConfigureDatabaseConfiguration("sa", "Password123", "Movies")
+                .ConfigureDatabaseConfiguration("sa", "Password123.", "Movies")
                 .ConfigureContainer((contex, container) =>
                 {
                     container.Env.Add("MSSQL_PID", "Express");
@@ -45,7 +45,7 @@ public class DatabaseFixture : IAsyncLifetime
         this.migrationsContainer = new ContainerBuilder<MigrationsContainer>()
             .ConfigureContainer((context, container) =>
             {
-                var connectionString = $"Server=localhost;Port={this.databaseContainer.GetMappedPort(MsSqlContainer.DefaultPort)};User ID=sa;Password=Password123;Database=master;Encrypt=False";
+                var connectionString = $"Server=localhost,{this.databaseContainer.GetMappedPort(MsSqlContainer.DefaultPort)};User ID=sa;Password=Password123.;Database=master;Encrypt=False";
                 container.Command = new List<string>
                 {
                     connectionString,
@@ -66,7 +66,7 @@ public class DatabaseFixture : IAsyncLifetime
             throw new Exception("Database migration failed");
         }
 
-        this.ConnectionString = $"Server={this.databaseContainer.GetDockerHostIpAddress()};Port={this.databaseContainer.GetMappedPort(MsSqlContainer.DefaultPort)};User ID=sa;Password=Password123;Database=Movies;Encrypt=False";
+        this.ConnectionString = $"Server={this.databaseContainer.GetDockerHostIpAddress()},{this.databaseContainer.GetMappedPort(MsSqlContainer.DefaultPort)};User ID=sa;Password=Password123.;Database=Movies;Encrypt=False";
     }
 
     public async Task DisposeAsync()
