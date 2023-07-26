@@ -521,4 +521,4 @@ In no particular order
 * [GitHub Actions](https://github.com/features/actions)
 * [About service containers](https://docs.github.com/en/actions/using-containerized-services/about-service-containers)
 * [Building and testing .NET](https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-net)
-* And many more 
+* And many more
