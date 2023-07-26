@@ -11,6 +11,11 @@ services:
       - moviesdbdata:/var/opt/mssql
     ports:
       - "1433:1433"
+    healthcheck:
+      test: '/opt/mssql-tools/bin/sqlcmd -U sa -P Password123 -i /scripts/setup-db.sql | grep -q "READY"'
+      timeout: 20s
+      interval: 10s
+      retries: 10
 
   movies.db.migrations:
     depends_on:
