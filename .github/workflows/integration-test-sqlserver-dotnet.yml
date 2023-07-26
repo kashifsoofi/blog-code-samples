@@ -22,6 +22,11 @@ jobs:
           MSSQL_PID: Express
         ports:
           - 1433:1433
+        options: >-
+          --health-cmd="'/opt/mssql-tools/bin/sqlcmd -U sa -P Password123 -i /scripts/setup-db.sql | grep -q "READY""
+          --health-interval=10s
+          --health-timeout=20s
+          --health-retries=10
 
     steps:
       - uses: actions/checkout@v3
