@@ -5,6 +5,7 @@ on:
     branches: [ "main" ]
     paths:
      - 'integration-test-sqlserver-dotnet/**'
+     - '.github\workflows\integration-test-sqlserver-dotnet.yml'
 
 jobs:
   build:
