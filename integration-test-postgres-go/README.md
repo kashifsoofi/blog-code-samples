@@ -249,7 +249,7 @@ func TestGetAll(t *testing.T) {
 }
 ```
 
-For second test, we would start by create test movies and then using the `dbHelper` insert those records to the database before calling the `GetAll` method on `PostgresMoviesStore`. After getting the result we will verify if each record we added earlier using `dbHelper` is present in the `GetAll` method result of `PostgresMoviesStore`. 
+For second test, we would start by creating test movies and then using the `dbHelper` to insert those records to the database before calling the `GetAll` method on `PostgresMoviesStore`. After getting the result we will verify if each record we added earlier using `dbHelper` is present in the `GetAll` method result of `PostgresMoviesStore`. We will also call a `defer` function to delete test data from the database. 
 ```go
 func TestGetAll(t *testing.T) {
 	...
@@ -395,7 +395,7 @@ func TestCreate(t *testing.T) {
 ```
 
 ### Update Tests
-To test update, first we will create a record and then call the `Update` method of store to update the recrod. After updating we will use the `dbHelper` to load the saved record and assert the saved record has updated values.
+To test update, first we will create a record and then call the `Update` method of store to update the recrod. After updating the record we will use the `dbHelper` to load the saved record and assert the saved record has updated values.
 
 ```go
 func TestUpdate(t *testing.T) {

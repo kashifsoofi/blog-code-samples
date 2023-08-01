@@ -9,8 +9,8 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/kashifsoofi/blog-code-samples/movies-api-with-go-chi-and-mysql/config"
-	"github.com/kashifsoofi/blog-code-samples/movies-api-with-go-chi-and-mysql/store"
+	"github.com/kashifsoofi/blog-code-samples/integration-test-mysql-go/config"
+	"github.com/kashifsoofi/blog-code-samples/integration-test-mysql-go/store"
 
 	"github.com/go-chi/chi/v5"
 )

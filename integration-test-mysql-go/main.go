@@ -4,9 +4,9 @@ import (
 	"context"
 	"log"
 
-	"github.com/kashifsoofi/blog-code-samples/movies-api-with-go-chi-and-mysql/api"
-	"github.com/kashifsoofi/blog-code-samples/movies-api-with-go-chi-and-mysql/config"
-	"github.com/kashifsoofi/blog-code-samples/movies-api-with-go-chi-and-mysql/store"
+	"github.com/kashifsoofi/blog-code-samples/integration-test-mysql-go/api"
+	"github.com/kashifsoofi/blog-code-samples/integration-test-mysql-go/config"
+	"github.com/kashifsoofi/blog-code-samples/integration-test-mysql-go/store"
 )
 
 func main() {
