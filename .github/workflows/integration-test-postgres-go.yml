@@ -1,0 +1,44 @@
+name: Integration Test Postgres (Go)
+
+on:
+  push:
+    branches: [ "main" ]
+    paths:
+     - 'integration-test-postgres-go/**'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: integration-test-postgres-go
+
+    services:
+      postgres:
+        image: postgres:14-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: Password123
+          POSTGRES_DB: moviesdb
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.20'
+      - name: Build
+        run: go build -v ./...
+      - name: Build migratinos Docker image
+        run: docker build --file ./db/Dockerfile -t movies.db.migrations ./db
+      - name: Run migrations
+        run: docker run --add-host=host.docker.internal:host-gateway movies.db.migrations "Host=host.docker.internal;Username=postgres;Password=Password123;Database=moviesdb;Integrated Security=false;"
+      - name: Run integration tests
+        run: DATABASE_URL=postgresql://postgres:Password123@localhost:5432/moviesdb?sslmode=disable go test ./integrationtests
