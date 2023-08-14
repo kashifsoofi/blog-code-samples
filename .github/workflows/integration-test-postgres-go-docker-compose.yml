@@ -1,0 +1,29 @@
+name: Integration Test Postgres (Go) with docker-compose
+
+on:
+  push:
+    branches: [ "main" ]
+    paths:
+     - 'integration-test-postgres-go/**'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: integration-test-postgres-go
+
+    steps:
+      - uses: actions/checkout@v3
+      - name: Start container and apply migrations
+        run: docker compose -f "docker-compose.dev-env.yml" up -d --build
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.20'
+      - name: Build
+        run: go build -v ./...
+      - name: Run integration tests
+        run: DATABASE_URL=postgresql://postgres:Password123@localhost:5432/moviesdb?sslmode=disable go test ./integrationtests
+      - name: Stop containers
+        run: docker compose -f "docker-compose.dev-env.yml" down --remove-orphans --rmi all --volumes
