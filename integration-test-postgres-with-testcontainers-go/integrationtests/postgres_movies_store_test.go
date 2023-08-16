@@ -2,49 +2,72 @@ package integrationtests
 
 import (
 	"context"
+	"log"
 	"math"
 	"testing"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/jaswdr/faker"
+	"github.com/testcontainers/testcontainers-go"
 
-	"github.com/kashifsoofi/blog-code-samples/movies-api-with-go-chi-and-postgres/config"
 	"github.com/kashifsoofi/blog-code-samples/movies-api-with-go-chi-and-postgres/store"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
+	"github.com/stretchr/testify/suite"
 )
 
-var dbHelper *databaseHelper
-var sut *store.PostgresMoviesStore
-
-var fake faker.Faker
-
-func TestMain(t *testing.T) {
-	cfg, err := config.Load()
-	require.Nil(t, err)
-
-	dbHelper = newDatabaseHelper(cfg.DatabaseURL)
-
-	sut = store.NewPostgresMoviesStore(cfg.DatabaseURL)
-
-	fake = faker.New()
+type postgresMoviesStoreTestSuite struct {
+	suite.Suite
+	databaseContainer   *postgresContainer
+	migrationsContainer testcontainers.Container
+	sut                 *store.PostgresMoviesStore
+	ctx                 context.Context
+	dbHelper            *databaseHelper
+	fake                faker.Faker
 }
 
-func createMovie() store.Movie {
+func (suite *postgresMoviesStoreTestSuite) SetupSuite() {
+	suite.ctx = context.Background()
+	pgContainer, err := createPostgresContainer(suite.ctx)
+	if err != nil {
+		log.Fatal(err)
+	}
+	suite.databaseContainer = pgContainer
+
+	migrationsContainer, err := createMigrationsContainer(suite.ctx, suite.databaseContainer.connectionString)
+	if err != nil {
+		log.Fatal(err)
+	}
+	suite.migrationsContainer = migrationsContainer
+
+	suite.sut = store.NewPostgresMoviesStore(suite.databaseContainer.connectionString)
+	suite.dbHelper = newDatabaseHelper(suite.databaseContainer.connectionString)
+	suite.fake = faker.New()
+}
+
+func (suite *postgresMoviesStoreTestSuite) TearDownSuite() {
+	if err := suite.migrationsContainer.Terminate(suite.ctx); err != nil {
+		log.Fatalf("error terminating migrations container: %s", err)
+	}
+	if err := suite.databaseContainer.Terminate(suite.ctx); err != nil {
+		log.Fatalf("error terminating database container: %s", err)
+	}
+}
+
+func (suite *postgresMoviesStoreTestSuite) createMovie() store.Movie {
 	m := store.Movie{}
-	fake.Struct().Fill(&m)
-	m.ReleaseDate = fake.Time().Time(time.Now()).UTC()
+	suite.fake.Struct().Fill(&m)
+	m.ReleaseDate = suite.fake.Time().Time(time.Now()).UTC()
 	m.TicketPrice = math.Round(m.TicketPrice*100) / 100
 	m.CreatedAt = time.Now().UTC()
 	m.UpdatedAt = time.Now().UTC()
 	return m
 }
 
-func createMovies(n int) []store.Movie {
+func (suite *postgresMoviesStoreTestSuite) createMovies(n int) []store.Movie {
 	movies := []store.Movie{}
 	for i := 0; i < n; i++ {
-		m := createMovie()
+		m := suite.createMovie()
 		movies = append(movies, m)
 	}
 	return movies
@@ -60,11 +83,11 @@ func assertMovieEqual(t *testing.T, expected store.Movie, actual store.Movie) {
 	assert.WithinDuration(t, expected.UpdatedAt, actual.UpdatedAt, 1*time.Second)
 }
 
-func TestGetAll(t *testing.T) {
-	ctx := context.Background()
+func (suite *postgresMoviesStoreTestSuite) TestGetAll() {
+	t := suite.T()
 
 	t.Run("given no records, should return empty array", func(t *testing.T) {
-		storeMovies, err := sut.GetAll(ctx)
+		storeMovies, err := suite.sut.GetAll(suite.ctx)
 
 		assert.Nil(t, err)
 		assert.Empty(t, storeMovies)
@@ -72,8 +95,8 @@ func TestGetAll(t *testing.T) {
 	})
 
 	t.Run("given records exist, should return array", func(t *testing.T) {
-		movies := createMovies(3)
-		err := dbHelper.AddMovies(ctx, movies)
+		movies := suite.createMovies(3)
+		err := suite.dbHelper.AddMovies(suite.ctx, movies)
 		assert.Nil(t, err)
 
 		defer func() {
@@ -81,11 +104,11 @@ func TestGetAll(t *testing.T) {
 			for _, m := range movies {
 				ids = append(ids, m.ID)
 			}
-			err := dbHelper.CleanupMovies(ctx, ids...)
+			err := suite.dbHelper.CleanupMovies(suite.ctx, ids...)
 			assert.Nil(t, err)
 		}()
 
-		storeMovies, err := sut.GetAll(ctx)
+		storeMovies, err := suite.sut.GetAll(suite.ctx)
 
 		assert.Nil(t, err)
 		assert.NotEmpty(t, storeMovies)
@@ -101,54 +124,54 @@ func TestGetAll(t *testing.T) {
 	})
 }
 
-func TestGetByID(t *testing.T) {
-	ctx := context.Background()
+func (suite *postgresMoviesStoreTestSuite) TestGetByID() {
+	t := suite.T()
 
 	t.Run("given record does not exist, should return error", func(t *testing.T) {
-		id, err := uuid.Parse(fake.UUID().V4())
+		id, err := uuid.Parse(suite.fake.UUID().V4())
 		assert.NoError(t, err)
 
-		_, err = sut.GetByID(ctx, id)
+		_, err = suite.sut.GetByID(suite.ctx, id)
 
 		var targetErr *store.RecordNotFoundError
 		assert.ErrorAs(t, err, &targetErr)
 	})
 
 	t.Run("given record exists, should return record", func(t *testing.T) {
-		movie := createMovie()
-		err := dbHelper.AddMovie(ctx, movie)
+		movie := suite.createMovie()
+		err := suite.dbHelper.AddMovie(suite.ctx, movie)
 		assert.Nil(t, err)
 
 		defer func() {
-			err := dbHelper.DeleteMovie(ctx, movie.ID)
+			err := suite.dbHelper.DeleteMovie(suite.ctx, movie.ID)
 			assert.Nil(t, err)
 		}()
 
-		storeMovie, err := sut.GetByID(ctx, movie.ID)
+		storeMovie, err := suite.sut.GetByID(suite.ctx, movie.ID)
 
 		assert.Nil(t, err)
 		assertMovieEqual(t, movie, storeMovie)
 	})
 }
 
-func TestCreate(t *testing.T) {
-	ctx := context.Background()
+func (suite *postgresMoviesStoreTestSuite) TestCreate() {
+	t := suite.T()
 
 	t.Run("given record does not exist, should create record", func(t *testing.T) {
 		p := store.CreateMovieParams{}
-		fake.Struct().Fill(&p)
+		suite.fake.Struct().Fill(&p)
 		p.TicketPrice = math.Round(p.TicketPrice*100) / 100
-		p.ReleaseDate = fake.Time().Time(time.Now()).UTC()
+		p.ReleaseDate = suite.fake.Time().Time(time.Now()).UTC()
 
-		err := sut.Create(ctx, p)
+		err := suite.sut.Create(suite.ctx, p)
 
 		assert.Nil(t, err)
 		defer func() {
-			err := dbHelper.DeleteMovie(ctx, p.ID)
+			err := suite.dbHelper.DeleteMovie(suite.ctx, p.ID)
 			assert.Nil(t, err)
 		}()
 
-		m, err := dbHelper.GetMovie(ctx, p.ID)
+		m, err := suite.dbHelper.GetMovie(suite.ctx, p.ID)
 		assert.Nil(t, err)
 		expected := store.Movie{
 			ID:          p.ID,
@@ -163,11 +186,11 @@ func TestCreate(t *testing.T) {
 	})
 
 	t.Run("given record with id exists, should return DuplicateKeyError", func(t *testing.T) {
-		movie := createMovie()
-		err := dbHelper.AddMovie(ctx, movie)
+		movie := suite.createMovie()
+		err := suite.dbHelper.AddMovie(suite.ctx, movie)
 		assert.Nil(t, err)
 		defer func() {
-			err := dbHelper.DeleteMovie(ctx, movie.ID)
+			err := suite.dbHelper.DeleteMovie(suite.ctx, movie.ID)
 			assert.Nil(t, err)
 		}()
 
@@ -179,7 +202,7 @@ func TestCreate(t *testing.T) {
 			TicketPrice: movie.TicketPrice,
 		}
 
-		err = sut.Create(ctx, p)
+		err = suite.sut.Create(suite.ctx, p)
 
 		assert.NotNil(t, err)
 		var targetErr *store.DuplicateKeyError
@@ -187,30 +210,30 @@ func TestCreate(t *testing.T) {
 	})
 }
 
-func TestUpdate(t *testing.T) {
-	ctx := context.Background()
+func (suite *postgresMoviesStoreTestSuite) TestUpdate() {
+	t := suite.T()
 
 	t.Run("given record exists, should update record", func(t *testing.T) {
-		movie := createMovie()
-		err := dbHelper.AddMovie(ctx, movie)
+		movie := suite.createMovie()
+		err := suite.dbHelper.AddMovie(suite.ctx, movie)
 		assert.Nil(t, err)
 		defer func() {
-			err := dbHelper.DeleteMovie(ctx, movie.ID)
+			err := suite.dbHelper.DeleteMovie(suite.ctx, movie.ID)
 			assert.Nil(t, err)
 		}()
 
 		p := store.UpdateMovieParams{
-			Title:       fake.RandomStringWithLength(20),
-			Director:    fake.Person().Name(),
-			ReleaseDate: fake.Time().Time(time.Now()).UTC(),
-			TicketPrice: math.Round(fake.RandomFloat(2, 1, 100)*100) / 100,
+			Title:       suite.fake.RandomStringWithLength(20),
+			Director:    suite.fake.Person().Name(),
+			ReleaseDate: suite.fake.Time().Time(time.Now()).UTC(),
+			TicketPrice: math.Round(suite.fake.RandomFloat(2, 1, 100)*100) / 100,
 		}
 
-		err = sut.Update(ctx, movie.ID, p)
+		err = suite.sut.Update(suite.ctx, movie.ID, p)
 
 		assert.Nil(t, err)
 
-		m, err := dbHelper.GetMovie(ctx, movie.ID)
+		m, err := suite.dbHelper.GetMovie(suite.ctx, movie.ID)
 		assert.Nil(t, err)
 		expected := store.Movie{
 			ID:          movie.ID,
@@ -225,24 +248,28 @@ func TestUpdate(t *testing.T) {
 	})
 }
 
-func TestDelete(t *testing.T) {
-	ctx := context.Background()
+func (suite *postgresMoviesStoreTestSuite) TestDelete() {
+	t := suite.T()
 
 	t.Run("given record exists, should delete record", func(t *testing.T) {
-		movie := createMovie()
-		err := dbHelper.AddMovie(ctx, movie)
+		movie := suite.createMovie()
+		err := suite.dbHelper.AddMovie(suite.ctx, movie)
 		assert.Nil(t, err)
 		defer func() {
-			err := dbHelper.DeleteMovie(ctx, movie.ID)
+			err := suite.dbHelper.DeleteMovie(suite.ctx, movie.ID)
 			assert.Nil(t, err)
 		}()
 
-		err = sut.Delete(ctx, movie.ID)
+		err = suite.sut.Delete(suite.ctx, movie.ID)
 
 		assert.Nil(t, err)
 
-		_, err = dbHelper.GetMovie(ctx, movie.ID)
+		_, err = suite.dbHelper.GetMovie(suite.ctx, movie.ID)
 		assert.NotNil(t, err)
 		assert.ErrorContains(t, err, "sql: no rows in result set")
 	})
+}
+
+func TestPostgresMoviesStoreTestSuite(t *testing.T) {
+	suite.Run(t, new(postgresMoviesStoreTestSuite))
 }
