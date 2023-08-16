@@ -1,0 +1,25 @@
+name: Integration Test Postgres (testcontainers-go)
+
+on:
+  push:
+    branches: [ "main" ]
+    paths:
+     - 'integration-test-postgres-with-testcontainers-go/**'
+    
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: integration-test-postgres-with-testcontainers-go
+
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.20'
+      - name: Build
+        run: go build -v ./...
+      - name: Run integration tests
+        run: TESTCONTAINERS_RYUK_DISABLED=true go test ./integrationtests
