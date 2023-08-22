@@ -1,0 +1,43 @@
+name: Integration Test MySQL (Go)
+
+on:
+  push:
+    branches: [ "main" ]
+    paths:
+     - 'integration-test-mysql-go/**'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: integration-test-mysql-go
+
+    services:
+      movies.db.test:
+        image: mysql:5.7
+        env:
+          MYSQL_DATABASE: moviesdb
+          MYSQL_ROOT_PASSWORD: Password123
+        options: >-
+          --health-cmd="mysqladmin ping"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=3
+        ports:
+          - 3306:3306
+
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.20'
+      - name: Build
+        run: go build -v ./...
+      - name: Build migratinos Docker image
+        run: docker build --file ./db/Dockerfile -t movies.db.migrations ./db
+      - name: Run migrations
+        run: docker run --add-host=host.docker.internal:host-gateway movies.db.migrations 'mysql://root:Password123@tcp(host.docker.internal:3306)/moviesdb' up
+      - name: Run integration tests
+        run: DATABASE_URL='root:Password123@tcp(localhost:3306)/moviesdb?parseTime=true' go test ./integrationtests
