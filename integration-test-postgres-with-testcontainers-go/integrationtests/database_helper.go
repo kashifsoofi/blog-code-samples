@@ -6,7 +6,7 @@ import (
 	"github.com/google/uuid"
 	_ "github.com/jackc/pgx/stdlib"
 	"github.com/jmoiron/sqlx"
-	"github.com/kashifsoofi/blog-code-samples/movies-api-with-go-chi-and-postgres/store"
+	"github.com/kashifsoofi/blog-code-samples/integration-test-postgres-with-testcontainers-go/store"
 )
 
 const driverName = "pgx"

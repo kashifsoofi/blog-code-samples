@@ -4,9 +4,9 @@ import (
 	"context"
 	"log"
 
-	"github.com/kashifsoofi/blog-code-samples/movies-api-with-go-chi-and-postgres/api"
-	"github.com/kashifsoofi/blog-code-samples/movies-api-with-go-chi-and-postgres/config"
-	"github.com/kashifsoofi/blog-code-samples/movies-api-with-go-chi-and-postgres/store"
+	"github.com/kashifsoofi/blog-code-samples/integration-test-postgres-with-testcontainers-go/api"
+	"github.com/kashifsoofi/blog-code-samples/integration-test-postgres-with-testcontainers-go/config"
+	"github.com/kashifsoofi/blog-code-samples/integration-test-postgres-with-testcontainers-go/store"
 )
 
 func main() {

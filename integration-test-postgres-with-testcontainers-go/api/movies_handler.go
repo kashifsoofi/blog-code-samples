@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/kashifsoofi/blog-code-samples/movies-api-with-go-chi-and-postgres/store"
+	"github.com/kashifsoofi/blog-code-samples/integration-test-postgres-with-testcontainers-go/store"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/render"

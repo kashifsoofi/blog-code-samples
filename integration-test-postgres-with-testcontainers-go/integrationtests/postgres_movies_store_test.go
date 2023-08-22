@@ -11,7 +11,7 @@ import (
 	"github.com/jaswdr/faker"
 	"github.com/testcontainers/testcontainers-go"
 
-	"github.com/kashifsoofi/blog-code-samples/movies-api-with-go-chi-and-postgres/store"
+	"github.com/kashifsoofi/blog-code-samples/integration-test-postgres-with-testcontainers-go/store"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 )

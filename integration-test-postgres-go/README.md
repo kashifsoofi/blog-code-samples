@@ -27,7 +27,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
-	"github.com/kashifsoofi/blog-code-samples/movies-api-with-go-chi-and-postgres/store"
+	"github.com/kashifsoofi/blog-code-samples/integration-test-postgres-go/store"
 	_ "github.com/lib/pq"
 )
 
@@ -174,8 +174,8 @@ import (
 	"github.com/google/uuid"
 	"github.com/jaswdr/faker"
 
-	"github.com/kashifsoofi/blog-code-samples/movies-api-with-go-chi-and-postgres/config"
-	"github.com/kashifsoofi/blog-code-samples/movies-api-with-go-chi-and-postgres/store"
+	"github.com/kashifsoofi/blog-code-samples/integration-test-postgres-go/config"
+	"github.com/kashifsoofi/blog-code-samples/integration-test-postgres-go/store"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

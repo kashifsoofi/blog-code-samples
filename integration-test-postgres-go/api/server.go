@@ -9,8 +9,8 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/kashifsoofi/blog-code-samples/movies-api-with-go-chi-and-postgres/config"
-	"github.com/kashifsoofi/blog-code-samples/movies-api-with-go-chi-and-postgres/store"
+	"github.com/kashifsoofi/blog-code-samples/integration-test-postgres-go/config"
+	"github.com/kashifsoofi/blog-code-samples/integration-test-postgres-go/store"
 
 	"github.com/go-chi/chi/v5"
 )

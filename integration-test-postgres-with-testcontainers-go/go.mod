@@ -1,4 +1,4 @@
-module github.com/kashifsoofi/blog-code-samples/movies-api-with-go-chi-and-postgres
+module github.com/kashifsoofi/blog-code-samples/integration-test-postgres-with-testcontainers-go
 
 go 1.20
 
