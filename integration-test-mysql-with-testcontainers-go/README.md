@@ -11,489 +11,167 @@ We would need to start 2 containers before running our integration tests.
 ## Database Container
 Let's start by adding a new file `containers.go` under `integrationtests` folder. If there are multiple tests feell free to add a separate `testhelper` directory to add common code. When moving common code to separate package remember to make the types and methods public.
 
-We will create a struct and embed `postgres.PostgresContainer` from `testcontainers-go/modules/postgres` module. We would also add a `connectionString` for convenience. Then we will add a new method that would start the container and set the `connentionString` before returning to caller.
+We will create a struct `databaseContainer` and embed `mysql.MySQLContainer` from `testcontainers-go/modules/mysql` module. We would also add a `connectionString` for convenience. Then we will add a new method that would start the container and set the `connentionString` before returning to caller.
 ```go
 package integrationtests
 
 import (
 	"context"
+	"fmt"
+	"time"
 
-	_ "github.com/go-sql-driver/mysql"
-	"github.com/google/uuid"
-	"github.com/jmoiron/sqlx"
-	"github.com/kashifsoofi/blog-code-samples/integration-test-mysql-go/store"
+	"github.com/testcontainers/testcontainers-go"
+	"github.com/testcontainers/testcontainers-go/modules/mysql"
+	"github.com/testcontainers/testcontainers-go/wait"
 )
 
-const driverName = "mysql"
-
-type databaseHelper struct {
-	databaseUrl string
-	dbx         *sqlx.DB
-	trackedIDs  map[uuid.UUID]any
+type databaseContainer struct {
+	*mysql.MySQLContainer
+	connectionString string
 }
 
-func newDatabaseHelper(databaseUrl string) *databaseHelper {
-	return &databaseHelper{
-		databaseUrl: databaseUrl,
-		trackedIDs:  map[uuid.UUID]any{},
-	}
-}
-
-func noOpMapper(s string) string { return s }
-
-func (s *databaseHelper) connect(ctx context.Context) error {
-	dbx, err := sqlx.ConnectContext(ctx, driverName, s.databaseUrl)
-	if err != nil {
-		return err
-	}
-
-	dbx.MapperFunc(noOpMapper)
-	s.dbx = dbx
-	return nil
-}
-
-func (s *databaseHelper) close() error {
-	return s.dbx.Close()
-}
-
-func (s *databaseHelper) GetMovie(ctx context.Context, id uuid.UUID) (store.Movie, error) {
-	err := s.connect(ctx)
-	if err != nil {
-		return store.Movie{}, err
-	}
-	defer s.close()
-
-	var movie store.Movie
-	if err := s.dbx.GetContext(
-		ctx,
-		&movie,
-		`SELECT
-			Id, Title, Director, ReleaseDate, TicketPrice, CreatedAt, UpdatedAt
-		FROM Movies
-		WHERE Id = ?`,
-		id); err != nil {
-		return store.Movie{}, err
-	}
-
-	return movie, nil
-}
-
-func (s *databaseHelper) AddMovie(ctx context.Context, movie store.Movie) error {
-	err := s.connect(ctx)
-	if err != nil {
-		return err
-	}
-	defer s.close()
-
-	if _, err := s.dbx.NamedExecContext(
-		ctx,
-		`INSERT INTO Movies
-			(Id, Title, Director, ReleaseDate, TicketPrice, CreatedAt, UpdatedAt)
-		VALUES
-			(:Id, :Title, :Director, :ReleaseDate, :TicketPrice, :CreatedAt, :UpdatedAt)`,
-		movie); err != nil {
-		return err
-	}
-
-	s.trackedIDs[movie.ID] = movie.ID
-	return nil
-}
-
-func (s *databaseHelper) AddMovies(ctx context.Context, movies []store.Movie) error {
-	for _, movie := range movies {
-		if err := s.AddMovie(ctx, movie); err != nil {
-			return err
+func WithNetwork(network string) testcontainers.CustomizeRequestOption {
+	return func(req *testcontainers.GenericContainerRequest) {
+		req.Networks = []string{
+			network,
 		}
 	}
-
-	return nil
 }
 
-func (s *databaseHelper) DeleteMovie(ctx context.Context, id uuid.UUID) error {
-	err := s.connect(ctx)
+func WithName(name string) testcontainers.CustomizeRequestOption {
+	return func(req *testcontainers.GenericContainerRequest) {
+		req.Name = name
+	}
+}
+
+func createDatabaseContainer(ctx context.Context) (*databaseContainer, error) {
+	dbContainer, err := mysql.RunContainer(
+		ctx,
+		testcontainers.WithImage("mysql:5.7"),
+		mysql.WithDatabase("moviesdb"),
+		mysql.WithUsername("root"),
+		mysql.WithPassword("Password123"),
+		WithName("movies.db"),
+		WithNetwork("testcontainers-go"),
+	)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	defer s.close()
-
-	return s.deleteMovie(ctx, id)
-}
-
-func (s *databaseHelper) CleanupAllMovies(ctx context.Context) error {
-	ids := []uuid.UUID{}
-	for id := range s.trackedIDs {
-		ids = append(ids, id)
-	}
-	return s.CleanupMovies(ctx, ids...)
-}
-
-func (s *databaseHelper) CleanupMovies(ctx context.Context, ids ...uuid.UUID) error {
-	err := s.connect(ctx)
+	connStr, err := dbContainer.ConnectionString(ctx, "parseTime=true")
 	if err != nil {
-		return err
-	}
-	defer s.close()
-
-	for _, id := range ids {
-		if err := s.deleteMovie(ctx, id); err != nil {
-			return err
-		}
+		return nil, err
 	}
 
-	return nil
-}
-
-func (s *databaseHelper) deleteMovie(ctx context.Context, id uuid.UUID) error {
-	_, err := s.dbx.ExecContext(ctx, `DELETE FROM Movies WHERE id = ?`, id)
-	if err != nil {
-		return err
-	}
-
-	delete(s.trackedIDs, id)
-	return nil
+	return &databaseContainer{
+		MySQLContainer:   dbContainer,
+		connectionString: connStr,
+	}, nil
 }
 ```
 
-### `mysql_movies_store_test.go`
-This file will contain the tests for each of the methods provided by `MySqlMoviesStore`. But first lets start by adding a `TestSuite`. We will add a test suite using `testify/suite` to test our `MySqlMoviesStore`. This will allow us to use the common setup before running any of the tests.
-In `SetupSuite` we will load the configuration from environment and initilise `MySqlMoviesStore` as well as `dbHelper` with database connection string.
-In `TearDownSuite` we can perform any clean up operations, it will remain empty in our case.
+### Migrations Cotnainer
+We will add another method in `containers.go` file to create and run migrations container by passing database container's IP address. To make this work we would need to run it in the same network we are running our database container i.e. `testcontainers-go`. First step of the method is to create a connection string, we are using the same values except for the database container IP but all these can be made configureable. Instead of keeping migrations container running we will wait until it exits.
+```go
+func createMigrationsContainer(ctx context.Context, dbHostIP string) (testcontainers.Container, error) {
+	connectionString := fmt.Sprintf("mysql://root:Password123@tcp(%s:3306)/moviesdb", dbHostIP)
+	req := testcontainers.ContainerRequest{
+		FromDockerfile: testcontainers.FromDockerfile{
+			Context:    "../db",
+			Dockerfile: "Dockerfile",
+		},
+		WaitingFor: wait.ForExit().WithExitTimeout(10 * time.Second),
+		Cmd:        []string{connectionString, "up"},
+		Networks:   []string{"testcontainers-go"},
+		Name:       "movies.db.migrations",
+	}
+
+	migrationsContainer, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
+		ContainerRequest: req,
+		Started:          true,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return migrationsContainer, nil
+}
+```
+
+## Test Suite Changes
+We will add 2 new fields in our test suite to hold reference to our database container and migrations container that we would start to run our integration tests.
 
 ```go
 type mysqlMoviesStoreTestSuite struct {
-	suite.Suite
-	sut      *store.MySqlMoviesStore
-	ctx      context.Context
-	dbHelper *databaseHelper
-	fake     faker.Faker
+	...
+	dbContainer         *databaseContainer
+	migrationsContainer testcontainers.Container
+	...
 }
+```
 
+We will update `SetupSuite` method to create both database and migration containers and use the connection string from our newly created database container to initialise `sut` and `dbHelper`. We are no longer loading database url from environment configuration.
+```go
 func (suite *mysqlMoviesStoreTestSuite) SetupSuite() {
 	suite.ctx = context.Background()
 
-	cfg, err := config.Load()
-	require.Nil(suite.T(), err)
+	dbContainer, err := createDatabaseContainer(suite.ctx)
+	if err != nil {
+		log.Fatal(err)
+	}
+	suite.dbContainer = dbContainer
 
-	suite.sut = store.NewMySqlMoviesStore(cfg.DatabaseURL)
-	suite.dbHelper = newDatabaseHelper(cfg.DatabaseURL)
+	dbHostIP, _ := suite.dbContainer.ContainerIP(suite.ctx)
+	migrationsContainer, err := createMigrationsContainer(suite.ctx, dbHostIP)
+	if err != nil {
+		log.Fatal(err)
+	}
+	suite.migrationsContainer = migrationsContainer
+
+	suite.sut = store.NewMySqlMoviesStore(suite.dbContainer.connectionString)
+	suite.dbHelper = newDatabaseHelper(suite.dbContainer.connectionString)
 	suite.fake = faker.New()
 }
+```
 
+We will also update `TearDownSuite` method to terminate both migrations and database containers.
+```go
 func (suite *mysqlMoviesStoreTestSuite) TearDownSuite() {
-}
-
-...
-
-func TestMySqlMoviesStoreTestSuite(t *testing.T) {
-	suite.Run(t, new(mysqlMoviesStoreTestSuite))
-}
-```
-
-### Helper Methods
-We will add 2 helper methods to generate test data using faker and a helper method to assert 2 instancs of `store.Movie` are equal, we will compare time fields to nearest second.
-```go
-func (suite *mysqlMoviesStoreTestSuite) createMovie() store.Movie {
-	m := store.Movie{}
-	suite.fake.Struct().Fill(&m)
-	m.ReleaseDate = suite.fake.Time().Time(time.Now()).UTC()
-	m.TicketPrice = math.Round(m.TicketPrice*100) / 100
-	m.CreatedAt = time.Now().UTC()
-	m.UpdatedAt = time.Now().UTC()
-	return m
-}
-
-func (suite *mysqlMoviesStoreTestSuite) createMovies(n int) []store.Movie {
-	movies := []store.Movie{}
-	for i := 0; i < n; i++ {
-		m := suite.createMovie()
-		movies = append(movies, m)
+	if err := suite.migrationsContainer.Terminate(suite.ctx); err != nil {
+		log.Fatalf("error terminating migrations container: %s", err)
 	}
-	return movies
-}
-
-func assertMovieEqual(t *testing.T, expected store.Movie, actual store.Movie) {
-	assert.Equal(t, expected.ID, actual.ID)
-	assert.Equal(t, expected.Title, actual.Title)
-	assert.Equal(t, expected.Director, actual.Director)
-	assert.Equal(t, expected.ReleaseDate, actual.ReleaseDate)
-	assert.Equal(t, expected.TicketPrice, actual.TicketPrice)
-	assert.WithinDuration(t, expected.CreatedAt, actual.CreatedAt, 1*time.Second)
-	assert.WithinDuration(t, expected.UpdatedAt, actual.UpdatedAt, 1*time.Second)
-}
-```
-
-## Tests
-I am going to group tests by the method and then use `t.Run` within test mehtod to run an individual scenario. We can also use table based tests to run individual scenarios. e.g. if there are 2 tests for `GetAll`, those would be in `TestGetAll` method and then I would run individual test with `t.Run` within that method.
-
-Also before running tests, we would need to start the database server and apply migrations. Run following command to do that.
-```shell
-docker-compose -f docker-compose.dev-env.yml up -d
-```
-
-### GetAll Tests
-For `GetAll`, we are going to implement 2 test. First test is simple i.e. given there is no record in database for movies, `GetAll` should return an empty array. It would look like following
-```go
-func (suite *mysqlMoviesStoreTestSuite) TestGetAll() {
-	t := suite.T()
-
-	t.Run("given no records, should return empty array", func(t *testing.T) {
-		storeMovies, err := suite.sut.GetAll(suite.ctx)
-
-		assert.Nil(t, err)
-		assert.Empty(t, storeMovies)
-		assert.Equal(t, len(storeMovies), 0)
-	})
-```
-
-For second test, we would start by creating test movies and then using the `dbHelper` to insert those records to the database before calling the `GetAll` method on `MySqlMoviesStore`. After getting the result we will verify if each record we added earlier using `dbHelper` is present in the `GetAll` method result of `MySqlMoviesStore`. We will also call a `defer` function to delete test data from the database.
-```go
-func (suite *mysqlMoviesStoreTestSuite) TestGetAll() {
-	...
-	t.Run("given records exist, should return array", func(t *testing.T) {
-		movies := suite.createMovies(3)
-		err := suite.dbHelper.AddMovies(suite.ctx, movies)
-		assert.Nil(t, err)
-
-		defer func() {
-			ids := []uuid.UUID{}
-			for _, m := range movies {
-				ids = append(ids, m.ID)
-			}
-			err := suite.dbHelper.CleanupMovies(suite.ctx, ids...)
-			assert.Nil(t, err)
-		}()
-
-		storeMovies, err := suite.sut.GetAll(suite.ctx)
-
-		assert.Nil(t, err)
-		assert.NotEmpty(t, storeMovies)
-		assert.GreaterOrEqual(t, len(storeMovies), len(movies))
-		for _, m := range movies {
-			for _, sm := range storeMovies {
-				if m.ID == sm.ID {
-					assertMovieEqual(t, m, sm)
-					continue
-				}
-			}
-		}
-	})
-}
-```
-
-### GetByID Tests
-First test for `GetByID` is to try to get a record with a random id and verify that it return a `RecordNotFoundError`.
-```go
-func (suite *mysqlMoviesStoreTestSuite) TestGetByID() {
-	t := suite.T()
-
-	t.Run("given record does not exist, should return error", func(t *testing.T) {
-		id, err := uuid.Parse(suite.fake.UUID().V4())
-		assert.NoError(t, err)
-
-		_, err = suite.sut.GetByID(suite.ctx, id)
-
-		var targetErr *store.RecordNotFoundError
-		assert.ErrorAs(t, err, &targetErr)
-	})
-}
-```
-
-In our next test, we would first insert a record using `dbHelper` and then use our `sut`(system under test) to load the record and then finally verify that the inserted record is same as loaded record.
-```go
-func (suite *mysqlMoviesStoreTestSuite) TestGetByID() {
-	...
-	t.Run("given record exists, should return record", func(t *testing.T) {
-		movie := suite.createMovie()
-		err := suite.dbHelper.AddMovie(suite.ctx, movie)
-		assert.Nil(t, err)
-
-		defer func() {
-			err := suite.dbHelper.DeleteMovie(suite.ctx, movie.ID)
-			assert.Nil(t, err)
-		}()
-
-		storeMovie, err := suite.sut.GetByID(suite.ctx, movie.ID)
-
-		assert.Nil(t, err)
-		assertMovieEqual(t, movie, storeMovie)
-	})
-}
-```
-
-### Create Tests
-First test for `Create` is straight forward, we are going to generate some fake data for `createMovieParam`, create a new record using `sut` and then we would use our helper to load the record from database and assert the record was saved correctly.
-```go
-func (suite *mysqlMoviesStoreTestSuite) TestCreate() {
-	t := suite.T()
-
-	t.Run("given record does not exist, should create record", func(t *testing.T) {
-		p := store.CreateMovieParams{}
-		suite.fake.Struct().Fill(&p)
-		p.TicketPrice = math.Round(p.TicketPrice*100) / 100
-		p.ReleaseDate = suite.fake.Time().Time(time.Now()).UTC()
-
-		err := suite.sut.Create(suite.ctx, p)
-
-		assert.Nil(t, err)
-		defer func() {
-			err := suite.dbHelper.DeleteMovie(suite.ctx, p.ID)
-			assert.Nil(t, err)
-		}()
-
-		m, err := suite.dbHelper.GetMovie(suite.ctx, p.ID)
-		assert.Nil(t, err)
-		expected := store.Movie{
-			ID:          p.ID,
-			Title:       p.Title,
-			Director:    p.Director,
-			ReleaseDate: p.ReleaseDate,
-			TicketPrice: p.TicketPrice,
-			CreatedAt:   time.Now().UTC(),
-			UpdatedAt:   time.Now().UTC(),
-		}
-		assertMovieEqual(t, expected, m)
-	})
-}
-```
-
-2nd test is to check if the method returns an error if the id already exists. We will use `dbHelper` to add a new record first and then try to create a new record using `MySqlMoviesStore`.
-```go
-func (suite *mysqlMoviesStoreTestSuite) TestCreate() {
-	...
-	t.Run("given record with id exists, should return DuplicateKeyError", func(t *testing.T) {
-		movie := suite.createMovie()
-		err := suite.dbHelper.AddMovie(suite.ctx, movie)
-		assert.Nil(t, err)
-		defer func() {
-			err := suite.dbHelper.DeleteMovie(suite.ctx, movie.ID)
-			assert.Nil(t, err)
-		}()
-
-		p := store.CreateMovieParams{
-			ID:          movie.ID,
-			Title:       movie.Title,
-			Director:    movie.Director,
-			ReleaseDate: movie.ReleaseDate,
-			TicketPrice: movie.TicketPrice,
-		}
-
-		err = suite.sut.Create(suite.ctx, p)
-
-		assert.NotNil(t, err)
-		var targetErr *store.DuplicateKeyError
-		assert.ErrorAs(t, err, &targetErr)
-	})
-}
-```
-
-### Update Tests
-To test update, first we will create a record and then call the `Update` method of store to update the recrod. After updating the record we will use the `dbHelper` to load the saved record and assert the saved record has updated values.
-```go
-func (suite *mysqlMoviesStoreTestSuite) TestUpdate() {
-	t := suite.T()
-
-	t.Run("given record exists, should update record", func(t *testing.T) {
-		movie := suite.createMovie()
-		err := suite.dbHelper.AddMovie(suite.ctx, movie)
-		assert.Nil(t, err)
-		defer func() {
-			err := suite.dbHelper.DeleteMovie(suite.ctx, movie.ID)
-			assert.Nil(t, err)
-		}()
-
-		p := store.UpdateMovieParams{
-			Title:       suite.fake.RandomStringWithLength(20),
-			Director:    suite.fake.Person().Name(),
-			ReleaseDate: suite.fake.Time().Time(time.Now()).UTC(),
-			TicketPrice: math.Round(suite.fake.RandomFloat(2, 1, 100)*100) / 100,
-		}
-
-		err = suite.sut.Update(suite.ctx, movie.ID, p)
-
-		assert.Nil(t, err)
-
-		m, err := suite.dbHelper.GetMovie(suite.ctx, movie.ID)
-		assert.Nil(t, err)
-		expected := store.Movie{
-			ID:          movie.ID,
-			Title:       p.Title,
-			Director:    p.Director,
-			ReleaseDate: p.ReleaseDate,
-			TicketPrice: p.TicketPrice,
-			CreatedAt:   movie.CreatedAt,
-			UpdatedAt:   time.Now().UTC(),
-		}
-		assertMovieEqual(t, expected, m)
-	})
-}
-```
-
-### Delete Tests
-To test delete, first we will add a new record using `dbHelper`, then call `Delete` method on our `sut`. To verify the record was successfully deleted we would again use `dbHelper` to load the record and assert it returns error with string `no rows in result set`.
-```go
-func (suite *mysqlMoviesStoreTestSuite) TestDelete() {
-	t := suite.T()
-
-	t.Run("given record exists, should delete record", func(t *testing.T) {
-		movie := suite.createMovie()
-		err := suite.dbHelper.AddMovie(suite.ctx, movie)
-		assert.Nil(t, err)
-		defer func() {
-			err := suite.dbHelper.DeleteMovie(suite.ctx, movie.ID)
-			assert.Nil(t, err)
-		}()
-
-		err = suite.sut.Delete(suite.ctx, movie.ID)
-
-		assert.Nil(t, err)
-
-		_, err = suite.dbHelper.GetMovie(suite.ctx, movie.ID)
-		assert.NotNil(t, err)
-		assert.ErrorContains(t, err, "sql: no rows in result set")
-	})
+	if err := suite.dbContainer.Terminate(suite.ctx); err != nil {
+		log.Fatalf("error terminating database container: %s", err)
+	}
 }
 ```
 
 ## Run Integration Tests
-Run following `go test` command to run integration tests. Please remember pre-requisit of running these tests is to start database server and apply migrations.
+Run following `go test` command to run integration tests. Please note now we don't need to setup `DATABASE_URL` environment variable before running the tests as our setup takes care of starting up database server and getting connection string for that server and passing on to `migrationsContainer`, `sut` and `dbHelper`.
 ```shell
-DATABASE_URL=root:Password123@tcp(localhost:3306)/moviesdb?parseTime=true go test ./integrationtests
+go test ./integrationtests
 ```
 
 ## Integration Tests in CI
-I am also adding 2 [GitHub Actions](https://github.com/features/actions) workflows to run these integration tests as part of CI.
+I have also added [GitHub Actions](https://github.com/features/actions) workflow to run these integration tests as part of the CI when a change is pushed to `main` branch.
 
-### Setting up MySQL using GitHub Service Container
-In this workflow we would make use of the [GitHub service containers](https://docs.github.com/en/actions/using-containerized-services/about-service-containers) to start a MySQL server. We will build migrations container and run it as part of the build process to apply migrations before running integration tests. Here is the full listing.
+We will use the standard steps defined in [Building and testing Go](https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-go) guide. Running database server and migrations would be taken care by `SetupSuite`.
+
+Here is the complete listing of the workflow.
 ```yaml
-name: Integration Test MySQL (Go)
+name: Integration Test MySQL (testcontainers-go)
 
 on:
   push:
     branches: [ "main" ]
     paths:
-     - 'integration-test-mysql-go/**'
-
+     - 'integration-test-mysql-with-testcontainers-go/**'
+    
 jobs:
   build:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: integration-test-mysql-go
-
-    services:
-      movies.db.test:
-        image: mysql:5.7
-        env:
-          MYSQL_DATABASE: moviesdb
-          MYSQL_ROOT_PASSWORD: Password123
-        options: >-
-          --health-cmd="mysqladmin ping"
-          --health-interval=10s
-          --health-timeout=5s
-          --health-retries=3
-        ports:
-          - 3306:3306
+        working-directory: integration-test-mysql-with-testcontainers-go
 
     steps:
       - uses: actions/checkout@v3
@@ -503,54 +181,14 @@ jobs:
           go-version: '1.20'
       - name: Build
         run: go build -v ./...
-      - name: Build migratinos Docker image
-        run: docker build --file ./db/Dockerfile -t movies.db.migrations ./db
-      - name: Run migrations
-        run: docker run --add-host=host.docker.internal:host-gateway movies.db.migrations "mysql://root:Password123@tcp(movies.db:3306)/moviesdb" up
       - name: Run integration tests
-        run: DATABASE_URL=root:Password123@tcp(localhost:3306)/moviesdb?parseTime=true go test ./integrationtests
-```
-
-### Setting up MySQL using docker-compose
-In this workflow we will use the docker-compose.dev-env.yml to start MySQL and apply migrations as a first step of the workflow after checking out the code. Here is the full listing.
-```yaml
-name: Integration Test MySQL (Go) with docker-compose
-
-on:
-  push:
-    branches: [ "main" ]
-    paths:
-     - 'integration-test-mysql-go/**'
-
-jobs:
-  build:
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: integration-test-mysql-go
-
-    steps:
-      - uses: actions/checkout@v3
-      - name: Start container and apply migrations
-        run: docker compose -f "docker-compose.dev-env.yml" up -d --build
-      - name: Set up Go
-        uses: actions/setup-go@v4
-        with:
-          go-version: '1.20'
-      - name: Build
-        run: go build -v ./...
-      - name: Run integration tests
-        run: DATABASE_URL=root:Password123@tcp(localhost:3306)/moviesdb?parseTime=true go test ./integrationtests
-      - name: Stop containers
-        run: docker compose -f "docker-compose.dev-env.yml" down --remove-orphans --rmi all --volumes
+        run: TESTCONTAINERS_RYUK_DISABLED=true go test ./integrationtests
 ```
 
 ## Source
-Source code for the demo application is hosted on GitHub in [blog-code-samples](https://github.com/kashifsoofi/blog-code-samples/tree/main/integration-test-mysql-go) repository.
+Source code for the demo application is hosted on GitHub in [blog-code-samples](https://github.com/kashifsoofi/blog-code-samples/tree/main/integration-test-mysql-with-testcontainers-go) repository.
 
-Source for `Integration Test MySQL (Go)` workflow is in [integration-test-mysql-go.yml](https://github.com/kashifsoofi/blog-code-samples/blob/main/.github/workflows/integration-test-mysql-go.yml).
-
-Source for `Integration Test MySQL (Go) with docker-compose` workflow is in [integration-test-mysql-go-docker-compose.yml](https://github.com/kashifsoofi/blog-code-samples/blob/main/.github/workflows/integration-test-mysql-go-docker-compose.yml).
+Source for `Integration Test MySQL (testcontainers-go)` workflow is in [integration-test-mysql-testcontainers-go.yml](https://github.com/kashifsoofi/blog-code-samples/blob/main/.github/workflows/integration-test-mysql-testcontainers-go.yml).
 
 
 ## References
@@ -569,4 +207,5 @@ In no particular order
 * [GitHub Actions](https://github.com/features/actions)
 * [About service containers](https://docs.github.com/en/actions/using-containerized-services/about-service-containers)
 * [Building and testing Go](https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-go)
+* [Testcontainers for Go!](https://golang.testcontainers.org/)
 * And many more
