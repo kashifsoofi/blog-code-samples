@@ -250,9 +250,10 @@ func (suite *mysqlMoviesStoreTestSuite) TestGetAll() {
 		assert.Empty(t, storeMovies)
 		assert.Equal(t, len(storeMovies), 0)
 	})
+}
 ```
 
-For second test, we would start by creating test movies and then using the `dbHelper` to insert those records to the database before calling the `GetAll` method on `MySqlMoviesStore`. After getting the result we will verify if each record we added earlier using `dbHelper` is present in the `GetAll` method result of `MySqlMoviesStore`. We will also call a `defer` function to delete test data from the database.
+For second test, we would start by creating test movies and then using the `dbHelper` to insert those records to the database before calling the `GetAll` method of `MySqlMoviesStore`. After getting the result we will verify if each record we added earlier using `dbHelper` is present in the `GetAll` method result of `MySqlMoviesStore`. We will also call a `defer` function to delete test data from the database.
 ```go
 func (suite *mysqlMoviesStoreTestSuite) TestGetAll() {
 	...
@@ -559,7 +560,6 @@ Source for `Integration Test MySQL (Go)` workflow is in [integration-test-mysql-
 
 Source for `Integration Test MySQL (Go) with docker-compose` workflow is in [integration-test-mysql-go-docker-compose.yml](https://github.com/kashifsoofi/blog-code-samples/blob/main/.github/workflows/integration-test-mysql-go-docker-compose.yml).
 
-
 ## References
 In no particular order
 * [REST API with Go, Chi, MySQL and sqlx](https://kashifsoofi.github.io/go/rest/mysql/sqlx/restapi-with-go-chi-mysql-and-sqlx/)
@@ -570,7 +570,6 @@ In no particular order
 * [migrate](https://github.com/golang-migrate/migrate)
 * [sqlx](https://github.com/jmoiron/sqlx)
 * [parseTime Parameter](https://stackoverflow.com/questions/26617957/how-to-scan-a-mysql-timestamp-value-into-a-time-time-variable)
-* [sqlx](https://github.com/jmoiron/sqlx)
 * [faker](https://github.com/jaswdr/faker)
 * [testify](https://github.com/stretchr/testify)
 * [GitHub Actions](https://github.com/features/actions)
