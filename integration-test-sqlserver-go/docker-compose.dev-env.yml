@@ -1,0 +1,34 @@
+version: '3.7'
+
+services:
+  movies.db:
+    image: movies.db
+    build:
+      context: ./db/
+      dockerfile: Dockerfile.db
+    environment:
+      - ACCEPT_EULA=Y
+      - MSSQL_SA_PASSWORD=Password123
+      - MSSQL_PID=Express
+    volumes:
+      - moviesdbdata:/var/opt/mssql
+    ports:
+      - "1433:1433"
+    healthcheck:
+      test: '/opt/mssql-tools/bin/sqlcmd -U sa -P Password123 -i /scripts/setup-db.sql | grep -q "READY"'
+      timeout: 20s
+      interval: 10s
+      retries: 10
+
+  movies.db.migrations:
+    depends_on:
+      movies.db:
+        condition: service_healthy
+    image: movies.db.migrations
+    build:
+      context: ./db/
+      dockerfile: Dockerfile.migrations
+    command: "sqlserver://sa:Password123@movies.db:1433/Movies up"
+
+volumes:
+  moviesdbdata:
