@@ -1,0 +1,39 @@
+name: Integration Test SQL Server (Go)
+
+on:
+  push:
+    branches: [ "main" ]
+    paths:
+     - 'integration-test-sqlserver-go/**'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: integration-test-sqlserver-go
+
+    services:
+      movies.db.test:
+        image: mcr.microsoft.com/mssql/server:2022-latest
+        env:
+          ACCEPT_EULA: "Y"
+          MSSQL_SA_PASSWORD: Password123
+          MSSQL_PID: Express
+        ports:
+          - 1433:1433
+
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.20'
+      - name: Build
+        run: go build -v ./...
+      - name: Build migratinos Docker image
+        run: docker build --file ./db/Dockerfile.db -t movies.db.migrations ./db
+      - name: Run migrations
+        run: docker run --add-host=host.docker.internal:host-gateway movies.db.migrations sqlserver://sa:Password123@movies.db:1433/Movies up
+      - name: Run integration tests
+        run: DATABASE_URL=sqlserver://sa:Password123@localhost:1433/Movies go test ./integrationtests

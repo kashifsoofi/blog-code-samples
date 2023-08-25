@@ -1,0 +1,7 @@
+FROM migrate/migrate
+
+# Copy all db files
+COPY ./migrations /migrations
+
+ENTRYPOINT [ "migrate", "-path", "/migrations", "-database"]
+CMD ["sqlserver://sa:Password123@movies.db:1433/Movies up"]
