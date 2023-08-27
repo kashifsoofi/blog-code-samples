@@ -1,5 +1,5 @@
-# Integration Test MySQL Store with testcontainers-go
-This is a continuation of an earlier post [Integration Test MySQL Store (go)](https://kashifsoofi.github.io/go/rest/mysql/sqlx/This is a continuation of an earlier post [Integration Test MySQL Store (go)](https://kashifsoofi.github.io/go/testing/integrationtest/mysql/integration-test-mysql-go/). In this tutorial I will extend the sample to use [testcontainers-go](https://golang.testcontainers.org) to spin up database container and apply migrations before executing our integration tests.
+# Integration Test MySQL with testcontainers-go
+This is a continuation of an earlier post [Integration Test MySQL Store (go)](https://kashifsoofi.github.io/go/testing/integrationtest/mysql/integration-test-mysql-go/). In this tutorial I will extend the sample to use [testcontainers-go](https://golang.testcontainers.org) to spin up database container and apply migrations before executing our integration tests.
 
 Prior to this sample, pre-requisite of running integration tests was that database server is running either on machine or in a container and migrations are applied. This update will remove that manual step.
 
@@ -9,7 +9,7 @@ We would need to start 2 containers before running our integration tests.
 * Migrations Container - container to apply database migrations
 
 ## Database Container
-Let's start by adding a new file `containers.go` under `integrationtests` folder. If there are multiple tests feell free to add a separate `testhelper` directory to add common code. When moving common code to separate package remember to make the types and methods public.
+Let's start by adding a new file `containers.go` under `integrationtests` folder. If there are multiple tests feel free to add a separate `testhelper` directory to add common code. When moving common code to separate package remember to make the types and methods public.
 
 We will create a struct `databaseContainer` and embed `mysql.MySQLContainer` from `testcontainers-go/modules/mysql` module. We would also add a `connectionString` for convenience. Then we will add a new method that would start the container and set the `connentionString` before returning to caller.
 ```go
