@@ -2,40 +2,63 @@ package integrationtests
 
 import (
 	"context"
+	"log"
 	"math"
 	"testing"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/jaswdr/faker"
+	"github.com/testcontainers/testcontainers-go"
 
-	"github.com/kashifsoofi/blog-code-samples/integration-test-sqlserver-with-testcontainers-go/config"
 	"github.com/kashifsoofi/blog-code-samples/integration-test-sqlserver-with-testcontainers-go/store"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 )
 
 type sqlServerMoviesStoreTestSuite struct {
 	suite.Suite
-	sut      *store.SqlServerMoviesStore
-	ctx      context.Context
-	dbHelper *databaseHelper
-	fake     faker.Faker
+	dbContainer         *databaseContainer
+	migrationsContainer testcontainers.Container
+	sut                 *store.SqlServerMoviesStore
+	ctx                 context.Context
+	dbHelper            *databaseHelper
+	fake                faker.Faker
 }
 
 func (suite *sqlServerMoviesStoreTestSuite) SetupSuite() {
 	suite.ctx = context.Background()
 
-	cfg, err := config.Load()
-	require.Nil(suite.T(), err)
+	dbContainer, err := createDatabaseContainer(suite.ctx)
+	if err != nil {
+		log.Fatal(err)
+	}
+	suite.dbContainer = dbContainer
 
-	suite.sut = store.NewSqlServerMoviesStore(cfg.DatabaseURL)
-	suite.dbHelper = newDatabaseHelper(cfg.DatabaseURL)
+	dbHostIP, _ := suite.dbContainer.ContainerIP(suite.ctx)
+	migrationsContainer, err := createMigrationsContainer(suite.ctx, dbHostIP)
+	if err != nil {
+		log.Fatal(err)
+	}
+	suite.migrationsContainer = migrationsContainer
+
+	connectionString, err := suite.dbContainer.ConnectionString(suite.ctx)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	suite.sut = store.NewSqlServerMoviesStore(connectionString)
+	suite.dbHelper = newDatabaseHelper(connectionString)
 	suite.fake = faker.New()
 }
 
 func (suite *sqlServerMoviesStoreTestSuite) TearDownSuite() {
+	if err := suite.migrationsContainer.Terminate(suite.ctx); err != nil {
+		log.Fatalf("error terminating migrations container: %s", err)
+	}
+	if err := suite.dbContainer.Terminate(suite.ctx); err != nil {
+		log.Fatalf("error terminating database container: %s", err)
+	}
 }
 
 func (suite *sqlServerMoviesStoreTestSuite) createMovie() store.Movie {
