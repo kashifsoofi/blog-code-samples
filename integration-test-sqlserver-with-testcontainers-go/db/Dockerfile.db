@@ -1,0 +1,7 @@
+FROM mcr.microsoft.com/mssql/server:2022-latest
+
+WORKDIR /scripts
+
+COPY setup-db.sql /scripts/setup-db.sql
+
+ENTRYPOINT [ "/opt/mssql/bin/sqlservr" ]
