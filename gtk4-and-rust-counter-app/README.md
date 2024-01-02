@@ -157,7 +157,7 @@ Lets add another button to decrease the value and update the value
 ```
 
 ## Source
-Source code for the demo application is hosted on GitHub in [blog-code-samples](https://github.com/kashifsoofi/blog-code-samples/tree/main/counter-app-with-gtk4-and-rust) repository.
+Source code for the demo application is hosted on GitHub in [blog-code-samples](https://github.com/kashifsoofi/blog-code-samples/tree/main/gtk4-and-rust-counter-app) repository.
 
 ## References
 In no particular order
