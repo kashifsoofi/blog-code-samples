@@ -87,7 +87,7 @@ And add `label_counter` as child of window.
 Running the application now would display `Hello World!` text in the window.
 <figure>
   <a href="images/02-hello-world.png"><img src="images/02-hello-world.png"></a>
-  <figcaption>Empty GTK Window</figcaption>
+  <figcaption>Hello World</figcaption>
 </figure>
 
 ## Increment Button
@@ -115,7 +115,7 @@ Now that we have multiple widgets, we would add a `gtk_box` to hold all the chil
 ```
 <figure>
   <a href="images/03-increase-button.png"><img src="images/03-increase-button.png"></a>
-  <figcaption>Empty GTK Window</figcaption>
+  <figcaption>Increase Button</figcaption>
 </figure>
 
 ## Add Click Handler
