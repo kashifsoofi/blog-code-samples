@@ -11,7 +11,7 @@ Let's begin by installing all necessary tools. First, follow the instructions on
 
 Now lets create a new project by executing:
 ```
-cargo new counter-app-with-gtk4-and-rust
+cargo new gtk4-rust-counter-app
 ```
 
 Add [gtk4 crate]() to your dependencies in `Cargo.toml`. 
@@ -26,7 +26,7 @@ cargo run
 At this moment it would print `Hello, world!`.
 
 ## Application
-Lets start by creating GTK Application and connting to `activate` event of the Application. We will create a method `build_ui` to create a window and display it.
+Lets start by creating GTK Application and connecting to `activate` event of the Application. We will create a method `build_ui` to create a window and display it.
 
 ```rust
 use gtk::prelude::*;
