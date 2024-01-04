@@ -122,6 +122,8 @@ We will setup the click handler after creating the window as need to pass the re
                 }));
         }));
 ```
+Shout out to [pacview preferences_window.rs](https://github.com/drakkar1969/pacview/blob/master/src/preferences_window.rs#L208) to help me figure out how to use the `choose_font` method.
+
 <figure>
   <a href="images/03-button-select-font.png"><img src="images/03-button-select-font.png"></a>
   <figcaption>Font Dialog Button</figcaption>
@@ -131,6 +133,36 @@ We will setup the click handler after creating the window as need to pass the re
   <a href="images/04-selected-font.png"><img src="images/04-selected-font.png"></a>
   <figcaption>Font Dialog Button</figcaption>
 </figure>
+
+## Choose Font with Button (Async)
+We can also choose font using a `Button` but by using the `async` version of the `choose_font`. Lets add another button and handler. Result would be the same.
+
+```rust
+    let button_select_font_async = Button::builder()
+        .label("Select Font (async)")
+        .margin_top(12)
+        .margin_bottom(12)
+        .margin_start(12)
+        .margin_end(12)
+        .build();
+    ....
+    button_select_font_async.connect_clicked(clone!(@weak window, @weak label_font =>
+        move |_| {
+            glib::spawn_future_local(clone!(@weak window, @weak label_font => async move {
+                let font_dialog = FontDialog::builder().modal(false).build();
+                let current_font = label_font.label();
+
+                match font_dialog.choose_font_future(
+                    Some(&window),
+                    Some(&FontDescription::from_string(&current_font.as_str())),
+                ).await {
+                    Ok(font) => { label_font.set_label(&font.to_string()); }
+                    Err(e) => { println!("{}", e); }
+                }
+            }));
+        }));
+```
+Shout out to [rnote project](https://github.com/flxzt/rnote/blob/main/crates/rnote-ui/src/penssidebar/typewriterpage.rs#L124) to help me figure out how to use the async/await here.
 
 ## Source
 Source code for the demo application is hosted on GitHub in [blog-code-samples](https://github.com/kashifsoofi/blog-code-samples/tree/main/gtk4-rust-font-dialog) repository.
@@ -145,4 +177,5 @@ In no particular order
 * [grk4 crate](https://crates.io/crates/gtk4)
 * [GUI development with Rust and GTK 4](https://gtk-rs.org/gtk4-rs/stable/latest/book/)
 * [pacview preferences_window.rs](https://github.com/drakkar1969/pacview/blob/master/src/preferences_window.rs#L208)
+* [rnote project](https://github.com/flxzt/rnote/blob/main/crates/rnote-ui/src/penssidebar/typewriterpage.rs#L124)
 * And many more

@@ -45,6 +45,14 @@ fn build_ui(app: &Application) {
         .margin_end(12)
         .build();
 
+    let button_select_font_async = Button::builder()
+        .label("Select Font (async)")
+        .margin_top(12)
+        .margin_bottom(12)
+        .margin_start(12)
+        .margin_end(12)
+        .build();
+
     // Add buttons to `gtk_box`
     let gtk_box = gtk::Box::builder()
         .orientation(Orientation::Vertical)
@@ -52,6 +60,7 @@ fn build_ui(app: &Application) {
     gtk_box.append(&font_dialog_button);
     gtk_box.append(&label_font);
     gtk_box.append(&button_select_font);
+    gtk_box.append(&button_select_font_async);
 
     // Create a window and set the title
     let window = ApplicationWindow::builder()
@@ -74,6 +83,22 @@ fn build_ui(app: &Application) {
                         label_font.set_label(&font_desc.to_string());
                     }
                 }));
+        }));
+
+    button_select_font_async.connect_clicked(clone!(@weak window, @weak label_font =>
+        move |_| {
+            glib::spawn_future_local(clone!(@weak window, @weak label_font => async move {
+                let font_dialog = FontDialog::builder().modal(false).build();
+                let current_font = label_font.label();
+
+                match font_dialog.choose_font_future(
+                    Some(&window),
+                    Some(&FontDescription::from_string(&current_font.as_str())),
+                ).await {
+                    Ok(font) => { label_font.set_label(&font.to_string()); }
+                    Err(e) => { println!("{}", e); }
+                }
+            }));
         }));
 
     // Present window
