@@ -83,6 +83,55 @@ fn build_ui(app: &Application) {
   <figcaption>Font Dialog Button</figcaption>
 </figure>
 
+## Choose Font with Button
+By using `FontDialogButton`, we don't show the `FontDialog` it is handled by the `FontDialogButton`. Lets add a label to display selected font and a button where we show the dialog on button click and get the selected font.
+```rust
+    let current_font = font_dialog_button.font_desc().expect("").to_string();
+    let label_font = Label::builder()
+        .label(current_font.to_string())
+        .margin_top(12)
+        .margin_bottom(12)
+        .margin_start(12)
+        .margin_end(12)
+        .build();
+
+    let button_select_font = Button::builder()
+        .label("Select Font")
+        .margin_top(12)
+        .margin_bottom(12)
+        .margin_start(12)
+        .margin_end(12)
+        .build();
+```
+
+We will setup the click handler after creating the window as need to pass the reference to click handler to set the parent of `FontDialog`. In the handler we will create a `FontDialog` and call `choose_font` method to display and select the font. We will update the `label_font` with the selected font on selection.
+```rust
+    button_select_font.connect_clicked(clone!(@weak window, @weak label_font =>
+        move |_| {
+            let font_dialog = FontDialog::builder().modal(false).build();
+            let current_font = label_font.label();
+
+            font_dialog.choose_font(
+                Some(&window),
+                Some(&FontDescription::from_string(&current_font.as_str())),
+                None::<&gio::Cancellable>,
+                clone!(@weak label_font => move |result| {
+                    if let Ok(font_desc) = result {
+                        label_font.set_label(&font_desc.to_string());
+                    }
+                }));
+        }));
+```
+<figure>
+  <a href="images/03-button-select-font.png"><img src="images/03-button-select-font.png"></a>
+  <figcaption>Font Dialog Button</figcaption>
+</figure>
+
+<figure>
+  <a href="images/04-selected-font.png"><img src="images/04-selected-font.png"></a>
+  <figcaption>Font Dialog Button</figcaption>
+</figure>
+
 ## Source
 Source code for the demo application is hosted on GitHub in [blog-code-samples](https://github.com/kashifsoofi/blog-code-samples/tree/main/gtk4-rust-font-dialog) repository.
 
@@ -95,5 +144,5 @@ In no particular order
 * [gtk-rs](https://gtk-rs.org/)
 * [grk4 crate](https://crates.io/crates/gtk4)
 * [GUI development with Rust and GTK 4](https://gtk-rs.org/gtk4-rs/stable/latest/book/)
-* 
+* [pacview preferences_window.rs](https://github.com/drakkar1969/pacview/blob/master/src/preferences_window.rs#L208)
 * And many more

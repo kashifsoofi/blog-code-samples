@@ -1,7 +1,7 @@
 use glib::clone;
 use gtk::prelude::*;
 use gtk::{
-    self, gio, glib, pango, Application, ApplicationWindow, Button, FontDialog, FontDialogButton,
+    self, gio, glib, pango::FontDescription, Application, ApplicationWindow, Button, FontDialog, FontDialogButton,
     Label, Orientation,
 };
 
@@ -28,11 +28,30 @@ fn build_ui(app: &Application) {
         .margin_end(12)
         .build();
 
+    let current_font = font_dialog_button.font_desc().expect("").to_string();
+    let label_font = Label::builder()
+        .label(current_font.to_string())
+        .margin_top(12)
+        .margin_bottom(12)
+        .margin_start(12)
+        .margin_end(12)
+        .build();
+
+    let button_select_font = Button::builder()
+        .label("Select Font")
+        .margin_top(12)
+        .margin_bottom(12)
+        .margin_start(12)
+        .margin_end(12)
+        .build();
+
     // Add buttons to `gtk_box`
     let gtk_box = gtk::Box::builder()
         .orientation(Orientation::Vertical)
         .build();
     gtk_box.append(&font_dialog_button);
+    gtk_box.append(&label_font);
+    gtk_box.append(&button_select_font);
 
     // Create a window and set the title
     let window = ApplicationWindow::builder()
@@ -40,7 +59,23 @@ fn build_ui(app: &Application) {
         .title("GTK Choose Font")
         .child(&gtk_box)
         .build();
-        
+
+    button_select_font.connect_clicked(clone!(@weak window, @weak label_font =>
+        move |_| {
+            let font_dialog = FontDialog::builder().modal(false).build();
+            let current_font = label_font.label();
+
+            font_dialog.choose_font(
+                Some(&window),
+                Some(&FontDescription::from_string(&current_font.as_str())),
+                None::<&gio::Cancellable>,
+                clone!(@weak label_font => move |result| {
+                    if let Ok(font_desc) = result {
+                        label_font.set_label(&font_desc.to_string());
+                    }
+                }));
+        }));
+
     // Present window
     window.present();
 }
