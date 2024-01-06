@@ -23,12 +23,14 @@ application.OnActivate += (sender, args) =>
     buttonSelectFont.SetMarginEnd(12);
     buttonSelectFont.OnClicked += (_, _) =>
     {
-        var fontChooserDialog = Gtk.FontChooserDialog.New();
-        fontChooserDialog.GetFontOptions();
+        var fontDialog = Gtk.FontDialog.New();
+        fontDialog.RunDispose();
     };
 
     var gtkBox = Gtk.Box.New(Gtk.Orientation.Vertical, 0);
     gtkBox.Append(fontDialogButton);
+    gtkBox.Append(labelFont);
+    gtkBox.Append(buttonSelectFont);
 
     var window = Gtk.ApplicationWindow.New((Gtk.Application)sender);
     window.Title = "GTK Choose Font";
