@@ -24,7 +24,6 @@ application.OnActivate += (sender, args) =>
     buttonSelectFont.OnClicked += (_, _) =>
     {
         var fontDialog = Gtk.FontDialog.New();
-        fontDialog.RunDispose();
     };
 
     var gtkBox = Gtk.Box.New(Gtk.Orientation.Vertical, 0);

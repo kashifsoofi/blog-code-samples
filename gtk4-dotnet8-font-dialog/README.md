@@ -22,7 +22,7 @@ dotnet sln add FontDialog.App/FontDialog.App.csproj
 New lets add C# bindings for Gtk4 to our `Counter.App` project
 ```shell
 cd Counter.App
-dotnet add package GirCore.Gtk-4.0 --version 0.4.0
+dotnet add package GirCore.Gtk-4.0 --version 0.5.0-preview.3
 ```
 Now we can run our application by executing:
 ```shell
