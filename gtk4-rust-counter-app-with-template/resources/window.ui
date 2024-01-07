@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<interface>
+  <template class="CounterAppWindow" parent="GtkApplicationWindow">
+    <property name="title">GTK Template Counter App</property>
+    <child>
+      <object class="GtkBox">
+        <property name="orientation">vertical</property>
+        <property name="margin-start">12</property>
+        <property name="margin-end">12</property>
+        <property name="spacing">12</property>
+        <child>
+          <object class="GtkLabel" id="label_counter">
+            <property name="label">0</property>
+            <property name="margin-top">12</property>
+            <property name="margin-bottom">12</property>
+            <property name="margin-start">12</property>
+            <property name="margin-end">12</property>  
+          </object>
+        </child>
+        <child>
+          <object class="GtkButton" id="button_increase">
+            <property name="label">Increase</property>
+            <property name="margin-top">12</property>
+            <property name="margin-bottom">12</property>
+            <property name="margin-start">12</property>
+            <property name="margin-end">12</property>  
+          </object>
+        </child>
+        <child>
+          <object class="GtkButton" id="button_decrease">
+            <property name="label">Decrease</property>
+            <property name="margin-top">12</property>
+            <property name="margin-bottom">12</property>
+            <property name="margin-start">12</property>
+            <property name="margin-end">12</property>  
+          </object>
+        </child>
+      </object>
+    </child>
+  </template>
+</interface>
