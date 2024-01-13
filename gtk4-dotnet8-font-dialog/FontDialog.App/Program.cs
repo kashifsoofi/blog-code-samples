@@ -21,10 +21,6 @@ application.OnActivate += (sender, args) =>
     buttonSelectFont.SetMarginBottom(12);
     buttonSelectFont.SetMarginStart(12);
     buttonSelectFont.SetMarginEnd(12);
-    buttonSelectFont.OnClicked += (_, _) =>
-    {
-        var fontDialog = Gtk.FontDialog.New();
-    };
 
     var gtkBox = Gtk.Box.New(Gtk.Orientation.Vertical, 0);
     gtkBox.Append(fontDialogButton);
@@ -35,6 +31,22 @@ application.OnActivate += (sender, args) =>
     window.Title = "GTK Choose Font";
     window.SetDefaultSize(300, 300);
     window.Child = gtkBox;
+
+    buttonSelectFont.OnClicked += async (_, _) =>
+    {
+        try
+        {
+            var fontDialog = Gtk.FontDialog.New();
+            var selectedFont = await fontDialog.ChooseFontAsync(window, null);
+            labelFont.SetLabel(selectedFont?.ToString() ?? string.Empty);
+        }
+        catch (Exception ex)
+        {
+            //Prints "Dismissed by user" if dialog is cancelled
+            Console.WriteLine(ex.Message);
+        }
+    };
+
     window.Show();
 };
-return application.RunWithSynchronizationContext();
+return application.RunWithSynchronizationContext(null);
