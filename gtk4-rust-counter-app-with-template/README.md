@@ -238,7 +238,7 @@ impl ApplicationWindowImpl for Window {}
 And thats it for this tutorial/sample, running this would diaplay the counter app window and we can click on Increase/Decrease button and see the value updated in the label.
 
 ## Source
-Source code for the demo application is hosted on GitHub in [blog-code-samples](https://github.com/kashifsoofi/blog-code-samples/tree/main/gtk4-rust-counter-app) repository.
+Source code for the demo application is hosted on GitHub in [blog-code-samples](https://github.com/kashifsoofi/blog-code-samples/tree/main/gtk4-rust-counter-app-with-template) repository.
 
 ## References
 In no particular order
